@@ -126,7 +126,7 @@ function renderParams() {
     box.innerHTML = `
       <div class="field-label">Animation states <span class="dim" id="stateCostNote">(one AI call per state)</span></div>
       <div class="states-grid" id="stateRow">
-        ${["idle", "walk", "run", "jump", "attack"].map(s =>
+        ${["idle", "walk", "run", "jump", "attack", "death"].map(s =>
           `<label class="chk"><input type="checkbox" data-state="${s}" ${d.states.includes(s) ? "checked" : ""}>${s}</label>`).join("")}
       </div>
       <div class="pgrid">
@@ -328,8 +328,60 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const AI_PROVIDERS = {
   "auto": {
-    note: "Auto chain: free models in order — Deliberate, then Juggernaut XL, then Stable Diffusion (plus your FLUX keys if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
+    note: "Auto chain: 16 free models in ranked order — FLUX.1 Schnell → Juggernaut XL → DreamShaper XL → Deliberate → AlbedoBase XL → Rev Animated → Flat-2D → Pixel Art → Counterfeit → Realistic Vision → ICBINP → Anything → Z-Image → SDXL → Ghibli → Stable Diffusion (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
     keyField: null, auto: true
+  },
+  "horde-flux": {
+    note: "Free, no key. FLUX.1 Schnell on community GPUs — top-tier quality, usually 30–90s in the queue.",
+    keyField: null, hordeModel: "Flux.1-Schnell fp8 (Compact)"
+  },
+  "horde-dreamshaper-xl": {
+    note: "Free, no key. DreamShaper XL — versatile, great for game art.",
+    keyField: null, hordeModel: "DreamShaper XL"
+  },
+  "horde-albedo": {
+    note: "Free, no key. AlbedoBase XL — sharp, detailed SDXL renders.",
+    keyField: null, hordeModel: "AlbedoBase XL (SDXL)"
+  },
+  "horde-rev": {
+    note: "Free, no key. Rev Animated — anime and animated-style characters.",
+    keyField: null, hordeModel: "Rev Animated"
+  },
+  "horde-flat2d": {
+    note: "Free, no key. Flat-2D Animerge — flat 2D style, made for sprites.",
+    keyField: null, hordeModel: "Flat-2D Animerge"
+  },
+  "horde-pixel": {
+    note: "Free, no key. AIO Pixel Art — the pixel-art specialist.",
+    keyField: null, hordeModel: "AIO Pixel Art"
+  },
+  "horde-counterfeit": {
+    note: "Free, no key. Counterfeit — polished anime renders.",
+    keyField: null, hordeModel: "Counterfeit"
+  },
+  "horde-realvis": {
+    note: "Free, no key. Realistic Vision — realistic characters and portraits.",
+    keyField: null, hordeModel: "Realistic Vision"
+  },
+  "horde-icbinp": {
+    note: "Free, no key. ICBINP — photoreal people and scenes.",
+    keyField: null, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
+  },
+  "horde-anything": {
+    note: "Free, no key. Anything Diffusion — the anime classic.",
+    keyField: null, hordeModel: "Anything Diffusion"
+  },
+  "horde-zimage": {
+    note: "Free, no key. Z-Image-Turbo — new, fast, crisp.",
+    keyField: null, hordeModel: "Z-Image-Turbo"
+  },
+  "horde-sdxl": {
+    note: "Free, no key. SDXL 1.0 — the solid base model.",
+    keyField: null, hordeModel: "SDXL 1.0"
+  },
+  "horde-ghibli": {
+    note: "Free, no key. Ghibli Diffusion — soft storybook look.",
+    keyField: null, hordeModel: "Ghibli Diffusion"
   },
   "horde-deliberate": {
     note: "Free, no key. Community GPUs — usually 20–60s. The default.",
@@ -493,10 +545,24 @@ async function aiGenerateWith(id, prompt, w, h, onStatus) {
   fail("Unknown AI model selected — pick one from the list.");
 }
 
-const AI_AUTO_CHAIN = ["horde-deliberate", "horde-juggernaut", "horde-sd"];
+/* the hub roster, ranked best → least (his order, 2026-10-20): AUTO walks
+ * this list top-down; saved FLUX keys slot in near the front */
+const AI_AUTO_CHAIN = [
+  "horde-flux", "horde-juggernaut", "horde-dreamshaper-xl", "horde-deliberate",
+  "horde-albedo", "horde-rev", "horde-flat2d", "horde-pixel",
+  "horde-counterfeit", "horde-realvis", "horde-icbinp", "horde-anything",
+  "horde-zimage", "horde-sdxl", "horde-ghibli", "horde-sd"
+];
 const AI_MODEL_NAMES = {
-  "horde-deliberate": "Deliberate", "horde-juggernaut": "Juggernaut XL",
-  "horde-sd": "Stable Diffusion", "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1"
+  "horde-flux": "FLUX.1 Schnell", "horde-juggernaut": "Juggernaut XL",
+  "horde-dreamshaper-xl": "DreamShaper XL", "horde-deliberate": "Deliberate",
+  "horde-albedo": "AlbedoBase XL", "horde-rev": "Rev Animated",
+  "horde-flat2d": "Flat-2D Animerge", "horde-pixel": "AIO Pixel Art",
+  "horde-counterfeit": "Counterfeit", "horde-realvis": "Realistic Vision",
+  "horde-icbinp": "ICBINP", "horde-anything": "Anything Diffusion",
+  "horde-zimage": "Z-Image-Turbo", "horde-sdxl": "SDXL 1.0",
+  "horde-ghibli": "Ghibli Diffusion", "horde-sd": "Stable Diffusion",
+  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1"
 };
 
 /* AUTO mode: walk the free chain; a limit, a refusal or a dead queue on one
@@ -506,8 +572,8 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
   const id = AI_PROVIDERS[state.aiModel] ? state.aiModel : "auto";
   if (id !== "auto") return aiGenerateWith(id, prompt, w, h, onStatus);
   const chain = AI_AUTO_CHAIN.slice();
-  if (aiKeyFor("pol-flux")) chain.push("pol-flux");
-  if (aiKeyFor("hf-flux")) chain.push("hf-flux");
+  if (aiKeyFor("hf-flux")) chain.splice(1, 0, "hf-flux");
+  if (aiKeyFor("pol-flux")) chain.splice(2, 0, "pol-flux");
   let lastErr = null;
   for (let i = 0; i < chain.length; i++) {
     const mid = chain[i];
@@ -3583,7 +3649,7 @@ function wireSlicer() {
   bindRange("#slCols", "#slColsVal", "cols");
 
   [["slMargin", "margin"], ["slPad", "pad"], ["slOx", "ox"], ["slOy", "oy"]].forEach(([id, key]) => {
-    $(id).onchange = (e) => {
+    $("#" + id).onchange = (e) => {
       S[key] = Math.max(0, Math.round(+e.target.value || 0));
       e.target.value = S[key];
       slicerOverlay();
@@ -3893,7 +3959,7 @@ document.addEventListener("DOMContentLoaded", init);
       /* all settings already persist on change — this force-saves the full
        * snapshot (theme + aura + rgb) and confirms visually */
       try {
-        lsSet(LS_THEME, document.documentElement.getAttribute("data-theme") || "ember");
+        lsSet(LS_THEME, document.documentElement.getAttribute("data-theme") || "porcelain");
         saveAura(readAura());
         saveRGB(readRGB());
       } catch (e) {}
@@ -3904,7 +3970,7 @@ document.addEventListener("DOMContentLoaded", init);
       }
     });
 
-    applyTheme(lsGet(LS_THEME) || "ember", false);
+    applyTheme(lsGet(LS_THEME) || "porcelain", false);
     applyAura();
     applyRGB();
   }
@@ -4698,3 +4764,60 @@ function wireFlip() {
   try { saved = localStorage.getItem("m4ster.dim") || "2d"; } catch (e) {}
   if (saved === "3d") applyDim("3d");
 }
+
+/* ============ step wizard (test build, his design 2026-10-20) ============
+ * The 5 ctl-groups become pages inside ONE frame: clickable progress dots
+ * on top, Back / Next at the bottom, Generate only on the last step.
+ * Auto-off while pixelart / slicer mode owns the panel (body class watch —
+ * every entry point into those modes flips it). */
+(function () {
+  var aside = document.querySelector(".controls");
+  if (!aside) return;
+  var groups = Array.prototype.slice.call(aside.querySelectorAll(".ctl-group"));
+  var top = document.getElementById("wizTop");
+  var dotsEl = document.getElementById("wizDots");
+  var countEl = document.getElementById("wizCount");
+  var btns = document.getElementById("wizBtns");
+  var back = document.getElementById("wizBack");
+  var next = document.getElementById("wizNext");
+  if (!groups.length || !dotsEl || !back || !next) return;
+  var cur = 0, dots = [];
+  groups.forEach(function (_, i) {
+    var d = document.createElement("button");
+    d.type = "button";
+    d.className = "wiz-dot";
+    d.setAttribute("aria-label", "Go to step " + (i + 1));
+    d.addEventListener("click", function () { go(i); });
+    dotsEl.appendChild(d);
+    dots.push(d);
+  });
+  function wizardOn() {
+    return !(document.body.classList.contains("mode-pixelart") ||
+             document.body.classList.contains("mode-slicer"));
+  }
+  function render() {
+    var on = wizardOn();
+    aside.classList.toggle("wizard", on);
+    aside.classList.toggle("wiz-last", on && cur === groups.length - 1);
+    if (top) top.hidden = !on;
+    if (btns) btns.hidden = !on;
+    groups.forEach(function (g, i) { g.classList.toggle("wiz-on", !on || i === cur); });
+    dots.forEach(function (d, i) {
+      d.classList.toggle("now", i === cur);
+      d.classList.toggle("done", i < cur);
+    });
+    if (countEl) countEl.textContent = "Step " + (cur + 1) + " of " + groups.length;
+    back.disabled = cur === 0;
+    next.style.visibility = cur === groups.length - 1 ? "hidden" : "visible";
+  }
+  function go(i) {
+    cur = Math.max(0, Math.min(groups.length - 1, i));
+    render();
+  }
+  back.addEventListener("click", function () { go(cur - 1); });
+  next.addEventListener("click", function () { go(cur + 1); });
+  new MutationObserver(render).observe(document.body, {
+    attributes: true, attributeFilter: ["class"]
+  });
+  render();
+})();

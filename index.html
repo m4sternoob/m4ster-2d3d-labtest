@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="ember">
+<html lang="en" data-theme="porcelain">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -136,6 +136,10 @@
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
+    <div class="wiz-top" id="wizTop" hidden>
+      <div class="wiz-dots" id="wizDots" aria-label="Steps"></div>
+      <span class="wiz-count" id="wizCount"></span>
+    </div>
     <section class="ctl-group">
       <div class="ctl-head"><span class="ctl-num">1</span><div class="ctl-titles"><span class="ctl-step">Step 1</span><h3>What are you making?</h3></div></div>
       <div class="tabs" role="tablist">
@@ -161,10 +165,23 @@
         <optgroup label="Auto — free chain, self-switching">
           <option value="auto">&#9889; Auto — free models, switches itself on limits</option>
         </optgroup>
-        <optgroup label="Free — no key needed">
+        <optgroup label="Free — no key needed (ranked best → least)">
+          <option value="horde-flux">AI Horde · FLUX.1 Schnell — top quality, no key</option>
+          <option value="horde-juggernaut">AI Horde · Juggernaut XL — best all-rounder, slower</option>
+          <option value="horde-dreamshaper-xl">AI Horde · DreamShaper XL — versatile game art</option>
           <option value="horde-deliberate">AI Horde · Deliberate — better quality</option>
-          <option value="horde-juggernaut">AI Horde · Juggernaut XL — best free, slower</option>
-          <option value="horde-sd">AI Horde · Stable Diffusion — quick</option>
+          <option value="horde-albedo">AI Horde · AlbedoBase XL — sharp SDXL detail</option>
+          <option value="horde-rev">AI Horde · Rev Animated — anime &amp; animated</option>
+          <option value="horde-flat2d">AI Horde · Flat-2D Animerge — flat 2D, made for sprites</option>
+          <option value="horde-pixel">AI Horde · AIO Pixel Art — pixel art specialist</option>
+          <option value="horde-counterfeit">AI Horde · Counterfeit — anime, high quality</option>
+          <option value="horde-realvis">AI Horde · Realistic Vision — realistic characters</option>
+          <option value="horde-icbinp">AI Horde · ICBINP — photoreal</option>
+          <option value="horde-anything">AI Horde · Anything Diffusion — anime classic</option>
+          <option value="horde-zimage">AI Horde · Z-Image-Turbo — fast new model</option>
+          <option value="horde-sdxl">AI Horde · SDXL 1.0 — solid base model</option>
+          <option value="horde-ghibli">AI Horde · Ghibli Diffusion — whimsical storybook</option>
+          <option value="horde-sd">AI Horde · Stable Diffusion — quick classic</option>
         </optgroup>
         <optgroup label="Free key — paste once, saved in your browser">
           <option value="pol-flux">Pollinations · FLUX — top quality</option>
@@ -235,6 +252,10 @@
       </div>
     </section>
 
+    <div class="wiz-btns" id="wizBtns" hidden>
+      <button type="button" class="btn-ghost wiz-back" id="wizBack">&larr; Back</button>
+      <button type="button" class="wiz-next" id="wizNext">Next &rarr;</button>
+    </div>
     <button id="generate" class="generate">GENERATE SPRITE</button>
     <div class="gen-note">AI models run free on AI Horde (no key). Procedural runs 100% offline.</div>
   </aside>
