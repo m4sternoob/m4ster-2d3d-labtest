@@ -5766,6 +5766,12 @@ function wire3DLab() {
     s.camera.near = maxDim / 100;
     s.camera.far = maxDim * 100;
     s.camera.updateProjectionMatrix();
+    /* zoom stops — without them a fast wheel/pinch dollies the camera
+     * INSIDE the mesh (faces cull, the model "vanishes") or out past the
+     * far plane. Reproduced in the lab 2026-10-20: framed mesh 36.7%
+     * opaque -> 0% at both zoom extremes. */
+    s.controls.minDistance = maxDim * 0.55;
+    s.controls.maxDistance = maxDim * 15;
     s.controls.update();
   }
 
