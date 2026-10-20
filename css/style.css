@@ -1198,7 +1198,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .ctl-group .field-label:first-child { margin-top: 0; }
 
 /* category tabs: chunky 3×2 grid */
-.controls .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.controls .tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .controls .tab {
   min-height: 46px; padding: 10px 6px; border-radius: 11px;
   font-size: 13.5px; font-weight: 700; text-align: center;
@@ -1300,7 +1300,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 }
 
 /* v6.16b — options form grid: label over field, pairs side by side */
-.pgrid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px 10px; margin-top: 12px; }
+.pgrid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr); gap: 12px 10px; margin-top: 12px; }
 .pfield > label {
   display: block; font-size: 11px; font-weight: 700;
   letter-spacing: .09em; text-transform: uppercase;
@@ -1315,7 +1315,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
   flex: 0 0 42px; width: 42px; min-height: 42px; padding: 0;
   display: grid; place-items: center; font-size: 16px; border-radius: 10px;
 }
-.states-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.states-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .states-grid label.chk { justify-content: center; margin: 0; }
 
 /* v6.16c — narrow-field fixes: palette select + facing seg were squeezed */
@@ -1333,15 +1333,18 @@ body.mode-slicer .mobile-bar { display: none !important; }
   letter-spacing: .18em; text-transform: uppercase; color: var(--violet);
 }
 .ctl-group { position: relative; }
-/* connector lives ONLY in the 14px gap between step cards, aligned with the
-   number badges — never inside a card, where it crossed the left-column
-   controls (his 2026-10-20 PC screenshot: line through every step card). */
-.ctl-group:not(:last-of-type)::before {
-  content: ""; position: absolute; left: 25px; bottom: -15px; height: 14px;
+/* step rail (his 2026-10-20 call: keep the line, move it LEFT): one
+   continuous line down the left edge of the step cards, Step 1 → Step 5.
+   It sits at left:6px — in the card's border strip, left of ALL content
+   (content starts at the 14px padding) — so it never crosses a button. */
+.ctl-group::before {
+  content: ""; position: absolute; left: 6px; top: -2px; bottom: -16px;
   width: 2px; border-radius: 2px;
-  background: linear-gradient(to bottom, var(--violet), transparent);
-  opacity: .45;
+  background: var(--violet);
+  opacity: .4;
 }
+.ctl-group:first-of-type::before { top: 12px; }
+.ctl-group:last-of-type::before { bottom: 12px; }
 .controls > .generate { position: relative; z-index: 1; }
 
 /* ================= TEST BUILD: dim flip + studio cards + 3D hub ============ */
@@ -1359,18 +1362,19 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .test-pill { border-color: #ffb020; color: #ffb020; }
 #studioPanel { margin-top: 14px; }
 .pick-grid { display: grid; gap: 8px; margin: 6px 0 12px; }
-.act-grid { grid-template-columns: repeat(4, 1fr); }
-.style-grid { grid-template-columns: repeat(4, 1fr); }
-.persp-grid { grid-template-columns: repeat(4, 1fr); }
+.act-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.style-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.persp-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .pick-card {
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  min-height: 64px; padding: 8px 4px; border-radius: 12px; cursor: pointer;
+  min-width: 0; min-height: 64px; padding: 8px 4px; border-radius: 12px; cursor: pointer;
   background: var(--field, rgba(255,255,255,.03)); border: 1px solid var(--line);
   color: var(--dim); font: 600 11.5px var(--font); transition: all .15s ease;
 }
 .pick-card:hover { transform: translateY(-2px); border-color: var(--violet); color: var(--text); }
 .pick-card.active { border-color: var(--violet); color: var(--text); background: rgba(139,92,246,.16); box-shadow: 0 0 0 1px var(--violet) inset; }
 .pc-icon { font-size: 19px; line-height: 1; }
+.pc-label { max-width: 100%; overflow-wrap: break-word; text-align: center; }
 .pc-sub { font-size: 10px; color: var(--dim); font-weight: 500; }
 .stepper {
   display: flex; align-items: center; justify-content: space-between;
@@ -1396,9 +1400,9 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .m3-chip { font: 700 10px var(--mono); letter-spacing: .12em; color: #ffb020; border: 1px solid #ffb020; border-radius: 999px; padding: 3px 9px; }
 .lab3d-note { color: var(--dim); line-height: 1.55; }
 @media (max-width: 900px) {
-  .ctl-group:not(:last-of-type)::before { left: 23px; }
+  .ctl-group::before { left: 5px; }
   .dim-flip { order: 3; }
-  .act-grid, .style-grid { grid-template-columns: repeat(4, 1fr); }
-  .persp-grid { grid-template-columns: repeat(2, 1fr); }
+  .act-grid, .style-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .persp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pick-card { min-height: 58px; font-size: 10.5px; }
 }
