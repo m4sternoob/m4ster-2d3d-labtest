@@ -1412,13 +1412,16 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .wiz-dots { display: flex; gap: 9px; }
 .wiz-dot {
   width: 11px; height: 11px; border-radius: 50%; padding: 0; cursor: pointer;
-  border: 2px solid var(--violet); background: transparent; transition: all .15s ease;
+  border: 2px solid color-mix(in srgb, var(--text) 40%, transparent);
+  background: transparent; transition: all .15s ease;
 }
 .wiz-dot:hover { transform: scale(1.25); }
-.wiz-dot.done { background: color-mix(in srgb, var(--violet) 45%, transparent); }
+.wiz-dot.done { background: color-mix(in srgb, var(--text) 35%, transparent); }
+/* current step = WHITE, never the theme accent (his call, 2026-10-20);
+   the soft text-colored ring keeps it visible on the light Porcelain too */
 .wiz-dot.now {
-  background: var(--violet);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 25%, transparent), 0 0 12px var(--glow);
+  background: #fff; border-color: #fff;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--text) 22%, transparent), 0 0 12px rgba(255, 255, 255, .45);
 }
 .wiz-count {
   font: 700 10.5px var(--mono); letter-spacing: .14em;
