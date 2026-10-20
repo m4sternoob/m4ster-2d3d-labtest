@@ -5644,7 +5644,7 @@ function wire3DLab() {
       goldMat: new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.3 }),
       cyanMat: new THREE.MeshStandardMaterial({ color: 0x35c4d8, metalness: 0.55, roughness: 0.35 }),
       gizmoScene, gizmoCam,
-      model: null, homePos: null, homeTarget: null, raf: 0 };
+      model: null, homePos: null, homeTarget: null, raf: 0, anim: null, animHome: null, maxDim: 1 };
     const tick = () => {
       m3three.raf = requestAnimationFrame(tick);
       if (!wrap.offsetParent) return; // stage hidden — idle cheap
@@ -5655,6 +5655,7 @@ function wire3DLab() {
         camera.updateProjectionMatrix();
       }
       controls.update();
+      m3AnimTick();
       renderer.render(scene, camera);
       if (m3three.model && w > 280 && h > 220) {
         const gs = 84;
@@ -5705,6 +5706,7 @@ function wire3DLab() {
     const center = box.getCenter(new s.THREE.Vector3());
     const size = box.getSize(new s.THREE.Vector3());
     const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    s.maxDim = maxDim;
     s.model.position.sub(center); // center at origin
     const dist = maxDim * 2.1;
     s.homePos = new s.THREE.Vector3(dist * 0.62, dist * 0.42, dist * 0.78);
@@ -5767,6 +5769,7 @@ function wire3DLab() {
       if (s.model) { s.scene.remove(s.model); }
       s.model = gltf.scene;
       s.scene.add(s.model);
+      s.anim = null; s.animHome = null;
       m3ApplyMode();
       m3FrameModel();
       try {
@@ -5914,6 +5917,63 @@ function wire3DLab() {
     const rot = document.getElementById("m3EnvRotate");
     if (rot) { rot.classList.toggle("on", s.controls.autoRotate); rot.setAttribute("aria-checked", String(s.controls.autoRotate)); }
   });
+  /* ===== P5: procedural motion engine (Animate panel) ===== */
+  const M3_MOTIONS = {
+    sway:    { loop: true,  fn: (t) => ({ rz: Math.sin(t * 1.6) * 0.05, dy: Math.sin(t * 3.2) * 0.012 }) },
+    dance:   { loop: true,  fn: (t) => ({ dy: Math.abs(Math.sin(t * 6)) * 0.12, rz: Math.sin(t * 6) * 0.14, ry: Math.sin(t * 3) * 0.5 }) },
+    nod:     { loop: true,  fn: (t) => ({ rx: Math.sin(t * 5) * 0.18 }) },
+    shake:   { loop: true,  fn: (t) => ({ ry: Math.sin(t * 6) * 0.3 }) },
+    alert:   { loop: true,  fn: (t) => ({ rz: Math.sin(t * 26) * 0.03, dy: Math.abs(Math.sin(t * 13)) * 0.03 }) },
+    wave:    { loop: true,  fn: (t) => ({ rz: Math.sin(t * 7) * 0.16, dy: Math.sin(t * 3.5) * 0.02 }) },
+    victory: { loop: true,  fn: (t) => ({ dy: Math.abs(Math.sin(t * 7)) * 0.16, ry: Math.sin(t * 3.5) * 0.3 }) },
+    arise:   { loop: false, dur: 1.6, fn: (t, p) => { const e = 1 - Math.pow(1 - p, 3); return { dy: -0.3 * (1 - e), sc: 0.6 + 0.4 * e }; } },
+    attack:  { loop: false, dur: 0.7, fn: (t, p) => { const s2 = Math.sin(p * Math.PI); return { dz: s2 * 0.35, rx: -s2 * 0.2 }; } },
+    behit:   { loop: false, dur: 0.9, fn: (t, p) => { const s2 = Math.sin(p * Math.PI); return { dy: s2 * 0.5, rx: s2 * 0.5 }; } },
+    spin:    { loop: false, dur: 1.0, fn: (t, p) => ({ ry: p * Math.PI * 2 }) },
+    bow:     { loop: false, dur: 1.4, fn: (t, p) => ({ rx: Math.sin(p * Math.PI) * 0.55 }) },
+    jump:    { loop: false, dur: 0.8, fn: (t, p) => ({ dy: Math.sin(p * Math.PI) * 0.4 }) }
+  };
+  function m3AnimRestore() {
+    const s = m3three;
+    if (!s || !s.model || !s.animHome) return;
+    s.model.position.copy(s.animHome.pos);
+    s.model.rotation.copy(s.animHome.rot);
+    s.model.scale.copy(s.animHome.scl);
+  }
+  function m3AnimTick() {
+    const s = m3three;
+    if (!s || !s.model || !s.anim) return;
+    const m = M3_MOTIONS[s.anim.name];
+    if (!m) { s.anim = null; return; }
+    const t = (Date.now() - s.anim.t0) / 1000;
+    const p = m.loop ? 0 : t / m.dur;
+    if (!m.loop && p >= 1) {
+      m3AnimRestore();
+      s.anim = null;
+      if (window.M3_ON_MOTION_END) window.M3_ON_MOTION_END();
+      return;
+    }
+    const o = m.fn(t, Math.min(p, 1)) || {};
+    const h = s.animHome, u = s.maxDim || 1;
+    s.model.position.set(h.pos.x, h.pos.y + (o.dy || 0) * u, h.pos.z + (o.dz || 0) * u);
+    s.model.rotation.set(h.rot.x + (o.rx || 0), h.rot.y + (o.ry || 0), h.rot.z + (o.rz || 0));
+    const sc = o.sc || 1;
+    s.model.scale.set(h.scl.x * sc, h.scl.y * sc, h.scl.z * sc);
+  }
+  window.M3_HAS_MODEL = function () { return !!(m3three && m3three.model); };
+  window.M3_PLAY_MOTION = function (name) {
+    if (!m3three || !m3three.model || !M3_MOTIONS[name]) return false;
+    const s = m3three;
+    if (!s.animHome) s.animHome = { pos: s.model.position.clone(), rot: s.model.rotation.clone(), scl: s.model.scale.clone() };
+    s.anim = { name: name, t0: Date.now() };
+    return true;
+  };
+  window.M3_STOP_MOTION = function () {
+    if (!m3three) return;
+    m3AnimRestore();
+    m3three.anim = null;
+  };
+
   /* ===== P4b: Tripo viewer batch — render dock, export popup, engine
      bridge, snapshot, texture toggle, uploaded-model viewing ===== */
   function m3SetRenderMode(mode) {
@@ -6291,3 +6351,141 @@ function wire3DLab() {
   }, { threshold: 0.12 });
   io.observe(el);
 })();
+
+/* ===== P5: Animate panel wiring ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const sec = document.getElementById("labAnimate");
+  if (!sec) return;
+  const PRESETS = [
+    ["sway", "Idle Sway", "gentle breathing loop"],
+    ["dance", "All Night Dance", "bounce + groove loop"],
+    ["nod", "Agree Gesture", "yes nod loop"],
+    ["shake", "Disagree Shake", "no shake loop"],
+    ["alert", "Alert", "startled tremble loop"],
+    ["wave", "Wave", "hello sway loop"],
+    ["victory", "Victory Bounce", "celebration loop"],
+    ["arise", "Arise", "rise up, one-shot"],
+    ["attack", "Attack", "forward lunge, one-shot"],
+    ["behit", "BeHit FlyUp", "knockback, one-shot"],
+    ["spin", "Spin", "full turn, one-shot"],
+    ["bow", "Bow", "deep bow, one-shot"],
+    ["jump", "Jump", "hop, one-shot"]
+  ];
+  const grid = document.getElementById("laGrid");
+  const status = document.getElementById("laStatus");
+  const mine = document.getElementById("laMine");
+  let current = null;
+  function say(msg) { if (status) status.textContent = msg; }
+  function clearActive() {
+    current = null;
+    grid.querySelectorAll(".la-preset").forEach((b) => b.classList.remove("active"));
+  }
+  function logMine(key, name) {
+    const empty = document.getElementById("laMineEmpty");
+    if (empty) empty.remove();
+    if (mine.querySelector('[data-k="' + key + '"]')) return;
+    const chip = document.createElement("span");
+    chip.className = "la-mine-chip";
+    chip.setAttribute("data-k", key);
+    chip.appendChild(document.createTextNode(name));
+    const rb = document.createElement("button");
+    rb.type = "button";
+    rb.textContent = "Replay";
+    rb.addEventListener("click", () => play(key, name));
+    chip.appendChild(rb);
+    mine.appendChild(chip);
+  }
+  function play(key, name) {
+    if (!window.M3_PLAY_MOTION) { say("The 3D viewer is not ready yet."); return; }
+    if (!window.M3_HAS_MODEL || !window.M3_HAS_MODEL()) {
+      say("No mesh loaded yet — generate one in the 3D studio above, or upload a GLB in My Assets, then hit a motion.");
+      const st = document.getElementById("m3Stage");
+      if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (current === key) {
+      window.M3_STOP_MOTION();
+      clearActive();
+      say("Stopped.");
+      return;
+    }
+    if (window.M3_PLAY_MOTION(key)) {
+      clearActive();
+      current = key;
+      const btn = grid.querySelector('[data-k="' + key + '"]');
+      if (btn) btn.classList.add("active");
+      logMine(key, name);
+      say("Playing: " + name + " — watch the viewer. Click it again to stop.");
+      const st = document.getElementById("m3Stage");
+      if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
+  window.M3_ON_MOTION_END = function () { clearActive(); say("Motion finished."); };
+  PRESETS.forEach(([key, name, tag]) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "la-preset";
+    b.setAttribute("data-k", key);
+    b.setAttribute("data-name", name.toLowerCase());
+    const st = document.createElement("strong"); st.textContent = name;
+    const sp = document.createElement("span"); sp.textContent = tag;
+    b.appendChild(st); b.appendChild(sp);
+    b.addEventListener("click", () => play(key, name));
+    grid.appendChild(b);
+  });
+  const search = document.getElementById("laSearch");
+  if (search) search.addEventListener("input", () => {
+    const q = search.value.trim().toLowerCase();
+    grid.querySelectorAll(".la-preset").forEach((b) => {
+      b.style.display = !q || b.getAttribute("data-name").includes(q) ? "" : "none";
+    });
+  });
+  const rig = document.getElementById("laRigBtn");
+  if (rig) rig.addEventListener("click", () => play("sway", "Idle Sway"));
+  const T2M = [
+    [/dance|groove|party/, "dance", "All Night Dance"],
+    [/spin|turn|twirl/, "spin", "Spin"],
+    [/jump|hop|leap/, "jump", "Jump"],
+    [/wave|hello|hi\b|greet/, "wave", "Wave"],
+    [/bow/, "bow", "Bow"],
+    [/agree|yes|nod/, "nod", "Agree Gesture"],
+    [/disagree|no\b|shake/, "shake", "Disagree Shake"],
+    [/alert|startle|scare/, "alert", "Alert"],
+    [/attack|fight|punch|lunge/, "attack", "Attack"],
+    [/hit|knock|fly/, "behit", "BeHit FlyUp"],
+    [/arise|rise|stand|spawn/, "arise", "Arise"],
+    [/victory|win|celebrat|champion/, "victory", "Victory Bounce"],
+    [/idle|sway|breathe|stand/, "sway", "Idle Sway"]
+  ];
+  const t2mBtn = document.getElementById("laT2mBtn");
+  const t2mIn = document.getElementById("laT2mInput");
+  const t2mStatus = document.getElementById("laT2mStatus");
+  function runT2M() {
+    const text = (t2mIn.value || "").toLowerCase();
+    if (!text.trim()) { t2mStatus.textContent = "Type a motion first — try \u201cvictory dance\u201d."; return; }
+    for (const [re, key, name] of T2M) {
+      if (re.test(text)) { t2mStatus.textContent = "Matched: " + name; play(key, name); return; }
+    }
+    t2mStatus.textContent = "That motion is not in the free library yet. Try: dance, spin, jump, wave, bow, agree, attack, victory, idle.";
+  }
+  if (t2mBtn) t2mBtn.addEventListener("click", runT2M);
+  if (t2mIn) t2mIn.addEventListener("keydown", (e) => { if (e.key === "Enter") runT2M(); });
+  const vidBtn = document.getElementById("laVidBtn");
+  const vidFile = document.getElementById("laVidFile");
+  const vidPrev = document.getElementById("laVidPrev");
+  if (vidBtn && vidFile) {
+    vidBtn.addEventListener("click", () => vidFile.click());
+    vidFile.addEventListener("change", () => {
+      const f = vidFile.files && vidFile.files[0];
+      if (f && vidPrev) { vidPrev.src = URL.createObjectURL(f); vidPrev.hidden = false; }
+      vidFile.value = "";
+    });
+  }
+  // visibility follows the 2D/3D flip, like the studio itself
+  const f3 = document.getElementById("flip3d");
+  const f2 = document.getElementById("flip2d");
+  if (f3) f3.addEventListener("click", () => { sec.hidden = false; });
+  if (f2) f2.addEventListener("click", () => { sec.hidden = true; if (window.M3_STOP_MOTION) window.M3_STOP_MOTION(); clearActive(); });
+  const dock = document.getElementById("m3DockAnimate");
+  if (dock) dock.addEventListener("click", () => { sec.hidden = false; });
+});
