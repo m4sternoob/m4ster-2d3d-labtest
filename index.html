@@ -452,6 +452,7 @@
           <strong>Click / Drag &amp; Drop / Paste Image</strong>
           <span class="dim">Supported formats: .png .jpg .jpeg .webp<br>Max size: 20MB</span>
         </div>
+        <button type="button" class="m3-drop-genlink" id="m3DropGenLink">Generate Image for 3D &#8250;</button>
       </div>
 
       <div class="m3-samples" id="m3Samples" hidden>
@@ -493,7 +494,7 @@
     <!-- ===== stage: Meshy viewer layout ===== -->
     <div class="m3-stage" id="m3Stage">
       <div class="m3-empty" id="m3StageEmpty">
-        <h3>Great meshes start with a great image</h3>
+        <h3>Ready for a new 3D model?</h3>
         <div class="m3-steps">
           <div class="m3-step"><div class="m3-step-art">&#128221;</div><strong>Drop an image</strong><span>Any character, prop or creature</span></div>
           <div class="m3-step-arrow">&rarr;</div>
@@ -521,6 +522,7 @@
             <button type="button" class="m3-mode active" id="m3ModeLit" title="Lit — textured, lit render">Lit</button>
             <button type="button" class="m3-mode" id="m3ModeClay" title="Clay — plain grey, shape only">Clay</button>
             <button type="button" class="m3-mode" id="m3ModeWire" title="Wireframe — the raw triangles">Wire</button>
+            <button type="button" class="m3-mode" id="m3ModeNormal" title="Normals — surface direction view">Normal</button>
           </div>
           <span class="m3-tb-spacer"></span>
           <button type="button" class="m3-tb-btn" id="m3EnvBtn" title="Environment settings">&#9728; Environment</button>
@@ -530,13 +532,37 @@
           <div class="m3-stat-row"><span>Topology</span><strong id="m3StatTopo">Triangle</strong></div>
           <div class="m3-stat-row"><span>Faces</span><strong id="m3StatFaces">—</strong></div>
           <div class="m3-stat-row"><span>Vertices</span><strong id="m3StatVerts">—</strong></div>
-        </div>
-        <div class="m3-stats m3-print" id="m3Print" hidden>
           <div class="m3-stat-row"><span>Printability</span><strong id="m3PrintVal">—</strong></div>
+          <div class="m3-stat-row"><span>Open edges</span><strong id="m3PrintOpen">—</strong></div>
+          <div class="m3-stat-row"><span>Degenerate tris</span><strong id="m3PrintDegen">—</strong></div>
         </div>
 
         <div class="m3-canvas-wrap" id="m3CanvasWrap">
           <model-viewer id="m3Viewer" class="m3-viewer" camera-controls auto-rotate hidden></model-viewer>
+          <div class="m3-rdock" id="m3Rdock">
+            <button type="button" class="m3-rd-btn" id="m3RdEnv" title="Environment settings">&#9728;</button>
+            <button type="button" class="m3-rd-btn" id="m3RdSnap" title="Snapshot — save a PNG of this view">&#128247;</button>
+            <button type="button" class="m3-rd-btn" id="m3RdTex" title="Textures on / off">&#129525;</button>
+            <button type="button" class="m3-rd-btn" id="m3RdHelp" title="Viewer controls">?</button>
+          </div>
+          <div class="m3-renderdock" id="m3RenderDock" role="group" aria-label="Render material">
+            <button type="button" class="m3-sphere sp-wire" data-rmode="wire" title="Wireframe"></button>
+            <button type="button" class="m3-sphere sp-clay" data-rmode="clay" title="Matte clay"></button>
+            <button type="button" class="m3-sphere sp-metal" data-rmode="metal" title="Polished metal"></button>
+            <button type="button" class="m3-sphere sp-normal" data-rmode="normal" title="Normals"></button>
+            <span class="m3-rd-sep"></span>
+            <button type="button" class="m3-sphere sp-grey" data-rmode="grey" title="Studio grey"></button>
+            <button type="button" class="m3-sphere sp-gold" data-rmode="gold" title="Gold"></button>
+            <button type="button" class="m3-sphere sp-cyan" data-rmode="cyan" title="Cyan resin"></button>
+            <span class="m3-rd-sep"></span>
+            <button type="button" class="m3-sphere sp-texmap" data-rmode="metalmap" title="Metallic map (PBR channel)"></button>
+            <button type="button" class="m3-sphere sp-roughmap" data-rmode="roughmap" title="Roughness map (PBR channel)"></button>
+          </div>
+          <div class="m3-helpop" id="m3HelpPop" hidden>
+            <strong>Viewer controls</strong>
+            <span>Drag — orbit &middot; Scroll — zoom &middot; Right-drag — pan</span>
+            <span>The spheres swap the render material. &#128247; saves a PNG of the view.</span>
+          </div>
         </div>
 
         <div class="m3-envpop" id="m3EnvPop" hidden>
@@ -553,15 +579,31 @@
           <div class="m3-env-row"><span>Background</span><button class="m3-switch on" id="m3EnvBg" role="switch" aria-checked="true" aria-label="Show background"><span class="knob"></span></button></div>
         </div>
 
+        <div class="m3-envpop m3-exppop" id="m3ExpPop" hidden>
+          <div class="m3-env-head">Export</div>
+          <div class="m3-env-row"><span>File name</span><input type="text" id="m3ExpName" value="framelab-mesh" spellcheck="false"></div>
+          <div class="m3-env-row"><span>Format</span><select id="m3ExpFmt"><option value="glb">GLB</option><option value="obj">OBJ</option></select></div>
+          <div class="m3-env-row"><span>Texture</span><strong id="m3ExpTex">Standard 1024</strong></div>
+          <button type="button" class="m3-exp-go" id="m3ExpGo">&#11015; Export — free</button>
+        </div>
+
+        <div class="m3-envpop m3-bridgepop" id="m3BridgePop" hidden>
+          <div class="m3-env-head">Engine Bridge — take this mesh into…</div>
+          <div class="m3-bridge-list" id="m3BridgeList"></div>
+          <p class="m3-bridge-note">One GLB, every engine. Downloads are named per engine so your project folder stays tidy.</p>
+        </div>
+
         <div class="m3-docks">
           <div class="m3-dock">
             <button type="button" class="m3-dock-btn" id="m3ShareBtn" title="Share this page">&#128228; Share</button>
-            <a id="m3Glb" class="m3-download" href="#" download="framelab-mesh.glb">&#11015; Download <span id="m3GlbSize" class="m3-dl-size"></span></a>
+            <button type="button" class="m3-download" id="m3ExportBtn">&#11015; Export <span id="m3GlbSize" class="m3-dl-size"></span></button>
+            <a id="m3Glb" href="#" download="framelab-mesh.glb" hidden></a>
             <a id="m3Obj" class="m3-dock-btn" href="#" download="framelab-mesh.obj" hidden>&#11015; OBJ <span id="m3ObjSize" class="m3-dl-size"></span></a>
           </div>
           <div class="m3-dock">
             <button type="button" class="m3-dock-btn" id="m3DockAnimate" title="Animate — motion presets">&#127939; Animate</button>
             <button type="button" class="m3-dock-btn" id="m3DockPrint" title="Print — post-processing">&#128424; Print</button>
+            <button type="button" class="m3-dock-btn" id="m3BridgeBtn" title="Engine Bridge — Unity, Unreal, Godot, Blender">&#127753; Engines</button>
           </div>
         </div>
 
@@ -583,6 +625,8 @@
     <div class="assets-actions">
       <input id="assetsSearch" type="search" placeholder="Search my generation" aria-label="Search my assets">
       <button id="assetsUpload" class="assets-upload" type="button">&#9646; Upload</button>
+      <button id="assetsUpload3d" class="assets-upload" type="button">&#129513; Upload 3D (GLB)</button>
+      <input type="file" id="assetsGlbFile" accept=".glb,.gltf" hidden>
     </div>
   </div>
   <div class="assets-bar">
