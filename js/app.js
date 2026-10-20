@@ -692,6 +692,148 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
   fail(`Every free model in the auto chain is unavailable right now. Last word: ${lastErr ? lastErr.message : "unknown"} — retry in a minute, the queues clear fast.`);
 }
 
+/* ===== Model Preference picker — Meshy copy (TEST build) =====
+ * Meshy's model dropdown is a rich popup: sections, one row per model
+ * with an icon, the model name, a small meta chip and a one-line
+ * description, checkmark on the current pick. Ours works the same on
+ * BOTH selects (2D #aiModel, 3D #m3Provider). The native <select>
+ * stays in the DOM as the single source of truth — picking a row sets
+ * select.value and dispatches a real change event, so every existing
+ * listener (state save, key row, notes, 3D description) keeps working.
+ * The popup is portaled to <body>: position:fixed inside the wizard's
+ * animated ancestors would render offset. */
+function mpParseOption(opt, groupLabel) {
+  const raw = opt.textContent.trim().replace(/^⚡\s*/, "");
+  const parts = raw.split(" — ");
+  const left = parts[0];
+  const desc = parts.slice(1).join(" — ");
+  const dot = left.split(" · ");
+  let source = "", name = left;
+  if (dot.length > 1) { source = dot[0]; name = dot.slice(1).join(" · "); }
+  let chip = "";
+  const tm = raw.match(/~?\s?(\d+(?:\.\d+)?s)\b/);
+  if (opt.value === "auto") chip = "AUTO";
+  else if (/free key/i.test(groupLabel || "")) chip = "FREE KEY";
+  else if (tm) chip = "~" + tm[1];
+  return { value: opt.value, name: name, source: source, desc: desc, chip: chip };
+}
+function mpSections(sel) {
+  const secs = [];
+  const pushOpt = (label, opt) => {
+    let s = secs.find((x) => x.label === label);
+    if (!s) { s = { label: label, rows: [] }; secs.push(s); }
+    s.rows.push(mpParseOption(opt, label));
+  };
+  Array.prototype.forEach.call(sel.children, (child) => {
+    if (child.tagName === "OPTGROUP") {
+      Array.prototype.forEach.call(child.children, (opt) => pushOpt(child.label, opt));
+    } else if (child.tagName === "OPTION") {
+      pushOpt(child.value === "auto" ? "Auto" : "Models", child);
+    }
+  });
+  return secs;
+}
+let mpOpenFor = null; // { btn, sel } while the popup is open
+function mpClose() {
+  const pop = document.getElementById("mpPop");
+  if (pop) pop.hidden = true;
+  if (mpOpenFor) mpOpenFor.btn.setAttribute("aria-expanded", "false");
+  mpOpenFor = null;
+}
+function wireModelPicker(btnId, selId) {
+  const btn = document.getElementById(btnId);
+  const sel = document.getElementById(selId);
+  const pop = document.getElementById("mpPop");
+  if (!btn || !sel || !pop) return;
+  const nameEl = btn.querySelector(".mp-name");
+  const chipEl = btn.querySelector(".mp-chip");
+  function refreshTrigger() {
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt) return;
+    const r = mpParseOption(opt, "");
+    if (nameEl) nameEl.textContent = (r.source ? r.source + " · " : "") + r.name;
+    if (chipEl) { chipEl.textContent = r.chip || ""; chipEl.hidden = !r.chip; }
+  }
+  sel.addEventListener("change", refreshTrigger);
+  refreshTrigger();
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (mpOpenFor && mpOpenFor.sel === sel) { mpClose(); return; }
+    mpClose();
+    const list = pop.querySelector(".mp-list");
+    const titleEl = pop.querySelector(".mp-title");
+    if (titleEl) titleEl.textContent = btn.getAttribute("data-mp-title") || "Model Preference";
+    list.innerHTML = "";
+    mpSections(sel).forEach((sec) => {
+      const h = document.createElement("div");
+      h.className = "mp-sec";
+      h.textContent = sec.label;
+      list.appendChild(h);
+      sec.rows.forEach((r) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "mp-row" + (r.value === sel.value ? " sel" : "");
+        const ic = document.createElement("span");
+        ic.className = "mp-ic";
+        ic.textContent = r.value === "auto" ? "⚡" : r.source.indexOf("Horde") >= 0 ? "◆" : r.chip === "FREE KEY" ? "●" : "▲";
+        const main = document.createElement("span");
+        main.className = "mp-main";
+        const nm = document.createElement("span");
+        nm.className = "mp-rname";
+        nm.textContent = (r.source ? r.source + " · " : "") + r.name;
+        if (r.chip) {
+          const ch = document.createElement("span");
+          ch.className = "mp-rchip";
+          ch.textContent = r.chip;
+          nm.appendChild(ch);
+        }
+        main.appendChild(nm);
+        if (r.desc) {
+          const ds = document.createElement("span");
+          ds.className = "mp-rdesc";
+          ds.textContent = r.desc;
+          main.appendChild(ds);
+        }
+        const ck = document.createElement("span");
+        ck.className = "mp-check";
+        ck.textContent = r.value === sel.value ? "✓" : "";
+        row.appendChild(ic);
+        row.appendChild(main);
+        row.appendChild(ck);
+        row.addEventListener("click", () => {
+          sel.value = r.value;
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+          refreshTrigger();
+          mpClose();
+        });
+        list.appendChild(row);
+      });
+    });
+    pop.hidden = false;
+    mpOpenFor = { btn: btn, sel: sel };
+    btn.setAttribute("aria-expanded", "true");
+    const rect = btn.getBoundingClientRect();
+    const pw = Math.min(430, window.innerWidth - 16);
+    pop.style.width = pw + "px";
+    pop.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - pw - 8)) + "px";
+    const below = window.innerHeight - rect.bottom;
+    if (below < 340 && rect.top > below) {
+      pop.style.top = "auto";
+      pop.style.bottom = (window.innerHeight - rect.top + 8) + "px";
+    } else {
+      pop.style.bottom = "auto";
+      pop.style.top = (rect.bottom + 8) + "px";
+    }
+  });
+}
+document.addEventListener("click", (e) => {
+  const pop = document.getElementById("mpPop");
+  if (!pop || pop.hidden || !mpOpenFor) return;
+  if (!pop.contains(e.target) && e.target !== mpOpenFor.btn && !mpOpenFor.btn.contains(e.target)) mpClose();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") mpClose(); });
+window.addEventListener("resize", () => mpClose());
+
 /* switcher UI: visibility, key row, notes — driven by the provider table */
 function syncAiModelUI() {
   const sel = document.getElementById("aiModel");
@@ -3838,6 +3980,7 @@ function init() {
       syncAiModelUI();
     });
   }
+  wireModelPicker("aiModelBtn", "aiModel");
   const aiKeyInput = document.getElementById("aiKey");
   if (aiKeyInput) {
     aiKeyInput.addEventListener("input", () => {
@@ -5163,6 +5306,7 @@ async function m3RunHunyuanMini(file, say) {
 
 function wire3DLab() {
   const fileInput = document.getElementById("m3File");
+  wireModelPicker("m3ModelBtn", "m3Provider");
   if (!fileInput) return;
   const drop = document.getElementById("m3Drop");
   const thumb = document.getElementById("m3Thumb");
