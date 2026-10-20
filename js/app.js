@@ -711,8 +711,11 @@ function mpParseOption(opt, groupLabel) {
   let source = "", name = left;
   if (dot.length > 1) { source = dot[0]; name = dot.slice(1).join(" · "); }
   let chip = "";
+  const M3_TIERS = { sf3d: "FAST", instantmesh: "BALANCED", trellis: "BALANCED", trellis2: "QUALITY", "hunyuan-mini": "FAST" };
+  if (M3_TIERS[opt.value]) chip = M3_TIERS[opt.value];
   const tm = raw.match(/~?\s?(\d+(?:\.\d+)?s)\b/);
-  if (opt.value === "auto") chip = "AUTO";
+  if (chip) { /* tier label wins */ }
+  else if (opt.value === "auto") chip = "AUTO";
   else if (/free key/i.test(groupLabel || "")) chip = "FREE KEY";
   else if (tm) chip = "~" + tm[1];
   return { value: opt.value, name: name, source: source, desc: desc, chip: chip };
@@ -5510,6 +5513,7 @@ function wire3DLab() {
     status.textContent = t;
     status.classList.toggle("err", !!isErr);
   }
+  window.M3_SET_SOURCE = function (f) { setFile(f); };
   function setFile(f) {
     if (!f) return;
     if (!/^image\//.test(f.type || "")) { say("That's not an image — pick a PNG or JPG.", true); return; }
@@ -6797,4 +6801,100 @@ document.addEventListener("DOMContentLoaded", function () {
   if (f2) f2.addEventListener("click", () => { sec.hidden = true; });
   const dock = document.getElementById("m3DockPrint");
   if (dock) dock.addEventListener("click", () => { sec.hidden = false; refreshCheck(); });
+});
+
+/* ===== P7: Skills, agent chips, text-to-3D chain ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const $ = (id) => document.getElementById(id);
+  function rows() { return (typeof state !== "undefined" && state && state.rows) ? state.rows : []; }
+  function flip3() { const f = $("flip3d"); if (f) f.click(); }
+  function scrollTo(id) { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
+
+  /* --- the Chain: prompt -> 2D image -> auto mesh --- */
+  window.M3_ARM_CHAIN = function (promptText) {
+    const p = $("prompt");
+    if (p) p.value = promptText;
+    window.M3_CHAIN = { armed: true, row0: rows()[0] || null };
+    const f2 = $("flip2d");
+    if (f2) f2.click();
+    const cs = $("m3ChainStatus");
+    if (cs) cs.textContent = "Chain armed — press Generate in the 2D wizard and the mesh builds itself when the image lands.";
+    const sk = $("skStatus");
+    if (sk) sk.textContent = "Skill loaded into the 2D prompt — press Generate there and the mesh auto-builds after.";
+    scrollTo("tool");
+  };
+  setInterval(() => {
+    const ch = window.M3_CHAIN;
+    if (!ch || !ch.armed) return;
+    const top = rows()[0];
+    if (!top || top === ch.row0 || !top.frames || !top.frames[0]) return;
+    ch.armed = false;
+    top.frames[0].toBlob((blob) => {
+      if (!blob) return;
+      flip3();
+      if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-chain.png", { type: "image/png" }));
+      const cs = $("m3ChainStatus");
+      if (cs) cs.textContent = "Image landed — building your mesh…";
+      setTimeout(() => { const go = $("m3Go"); if (go && !go.disabled) go.click(); }, 600);
+    }, "image/png");
+  }, 1000);
+  const chainBtn = $("m3ChainBtn");
+  if (chainBtn) chainBtn.addEventListener("click", () => {
+    const inp = $("m3ChainInput");
+    const text = inp && inp.value.trim();
+    if (!text) { const cs = $("m3ChainStatus"); if (cs) cs.textContent = "Describe the model first."; return; }
+    window.M3_ARM_CHAIN(text);
+  });
+
+  /* --- skills --- */
+  const SKILLS = [
+    ["&#129528;", "Chibi Figure", "A palm-sized chibi collectible of your character — big head, tiny body, vinyl-toy finish.", "cute chibi figurine of a hero character, big head, small body, vinyl toy style, full body, centered, plain background"],
+    ["&#128126;", "Low-Poly Cartoon Buddy", "A game-ready low-poly friend, flat colors and clean shapes — built for game jams.", "low-poly cartoon animal buddy character, flat colors, simple shapes, game asset, full body, centered, plain background"],
+    ["&#127963;", "Marble Statue", "A museum-grade marble bust — heroes, pets, or your own portrait in stone.", "classical marble statue bust of a noble warrior, museum sculpture, white marble, dramatic light, plain background"],
+    ["&#128054;", "Pet Memorial", "A noble little statue of a very good dog. Edit the prompt with your pet's breed and pose.", "noble dog statue sitting proudly, bronze memorial sculpture style, full body, centered, plain background"],
+    ["&#129513;", "Brick Figure", "A minifig-style toy version of anyone — chunky, glossy, collectible.", "plastic brick minifigure character, glossy toy photography style, full body, centered, plain background"],
+    ["&#127968;", "First Home Miniature", "Your place as a tiny architectural model — desk-worthy and weirdly emotional.", "miniature architectural scale model of a cozy house, isometric, detailed tiny model, plain background"]
+  ];
+  const grid = $("skGrid");
+  if (grid) {
+    SKILLS.forEach(([art, name, tag, prompt]) => {
+      const card = document.createElement("div");
+      card.className = "sk-card";
+      const a = document.createElement("div"); a.className = "sk-art"; a.innerHTML = art;
+      const st = document.createElement("strong"); st.textContent = name;
+      const p = document.createElement("p"); p.textContent = tag;
+      const b = document.createElement("button");
+      b.type = "button"; b.textContent = "✨ Make this";
+      b.addEventListener("click", () => window.M3_ARM_CHAIN(prompt));
+      card.appendChild(a); card.appendChild(st); card.appendChild(p); card.appendChild(b);
+      grid.appendChild(card);
+    });
+  }
+
+  /* --- agent chips: shortcuts into real controls --- */
+  const chips = $("agentChips");
+  if (chips) chips.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-chip]");
+    if (!b) return;
+    const kind = b.getAttribute("data-chip");
+    if (kind === "img3d") { flip3(); scrollTo("m3Stage"); }
+    else if (kind === "batch") {
+      const sec = $("labAssets");
+      if (sec) sec.scrollIntoView({ behavior: "smooth", block: "center" });
+      const cb = $("assetsBatch");
+      if (cb && !cb.checked) cb.click();
+    } else if (kind === "rig") {
+      flip3();
+      const sec = $("labAnimate");
+      if (sec) { sec.hidden = false; sec.scrollIntoView({ behavior: "smooth", block: "center" }); }
+      const rig = $("laRigBtn");
+      if (rig) setTimeout(() => rig.click(), 350);
+    } else if (kind === "remesh") { flip3(); const t = $("m3TopoSmart"); if (t) t.click(); scrollTo("lab3d"); }
+    else if (kind === "tex2k" || kind === "tex4k") {
+      flip3();
+      const btn = document.querySelector('.m3-res [data-tex="' + (kind === "tex2k" ? "2048" : "4096") + '"]');
+      if (btn) btn.click();
+      scrollTo("lab3d");
+    } else if (kind === "mv") { flip3(); const mv = $("m3MultiView"); if (mv) mv.click(); scrollTo("lab3d"); }
+  });
 });
