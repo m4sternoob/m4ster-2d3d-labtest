@@ -3704,6 +3704,7 @@ function init() {
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {
       document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".tool-card").forEach(x => x.classList.remove("active"));
       t.classList.add("active");
       state.category = t.dataset.cat;
       cancelAnimationFrame(slicerRAF);
@@ -4391,6 +4392,23 @@ function initV6() {
     };
   });
 
+  /* tool cards: standalone utilities — same category machinery as the
+   * tabs, but they live OUTSIDE the generation flow */
+  document.querySelectorAll(".tool-card").forEach(c => {
+    c.onclick = () => {
+      document.querySelectorAll(".tab").forEach(x => x.classList.remove("active"));
+      document.querySelectorAll(".tool-card").forEach(x => x.classList.remove("active"));
+      c.classList.add("active");
+      state.category = c.dataset.cat;
+      cancelAnimationFrame(slicerRAF);
+      renderParams();
+      syncPixelMode();
+      syncSlicerMode();
+      syncAiModelUI();
+      document.getElementById("tool").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+
   /* facing flip (delegated: renderParams re-renders #params on tab switch) */
   const paramsBox = $("#params");
   if (paramsBox) paramsBox.addEventListener("click", (e) => {
@@ -4734,7 +4752,7 @@ function wireStudio() {
       syncStudio();
     }
     if (e.target.id === "procBtn") {
-      const tab = document.querySelector('.tab[data-cat="slicer"]');
+      const tab = document.querySelector('.tool-card[data-cat="slicer"]');
       if (tab) tab.click();
       setTimeout(() => { const b = document.getElementById("slPick"); if (b) b.click(); }, 90);
     }

@@ -1453,3 +1453,34 @@ body.mode-slicer .mobile-bar { display: none !important; }
   .persp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .pick-card { min-height: 58px; font-size: 10.5px; }
 }
+
+/* ============ TOOLS strip: utilities live outside the generation flow ==== */
+.tools-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tool-card {
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 16px 18px; border-radius: 16px; cursor: pointer; font: inherit;
+  border: 1px solid var(--line); background: var(--panel); color: var(--text);
+  transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.tool-card svg { width: 34px; height: 34px; flex: none; color: var(--violet); }
+.tool-card:hover { transform: translateY(-2px); border-color: var(--violet); }
+.tool-card.active { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet) inset; background: color-mix(in srgb, var(--violet) 10%, var(--panel)); }
+.tool-text { display: flex; flex-direction: column; gap: 2px; }
+.tool-text b { font-size: 15.5px; }
+.tool-text span { color: var(--dim); font-size: 12.5px; }
+@media (max-width: 640px) { .tools-grid { grid-template-columns: 1fr; } }
+
+/* ============ TEST BUILD: mobile topbar — stack, never pile up ============ */
+@media (max-width: 700px) {
+  .topbar { flex-wrap: wrap; row-gap: 8px; padding: 10px 14px; padding-top: calc(10px + env(safe-area-inset-top)); }
+  .brand { order: 1; gap: 8px; }
+  .monogram { width: 34px; height: 34px; }
+  .brand-name { font-size: 16px; }
+  .tagline { display: none; }
+  .topbar-right { order: 2; margin-left: auto; gap: 8px; }
+  .topbar-right .pill { display: none; }
+  .test-pill { display: none; }
+  .gh-link { padding: 7px 10px; font-size: 12px; }
+  .dim-flip { order: 3; width: 100%; }
+  .flip-btn { flex: 1; min-height: 40px; }
+}
