@@ -6053,6 +6053,100 @@ function wire3DLab() {
     });
     return grp;
   }
+  /* ===== format exports: OBJ + FBX from the loaded mesh =====
+   * The popup's OBJ option used to depend on the provider handing back
+   * an OBJ file (only InstantMesh does) and silently served the GLB
+   * otherwise; FBX did not exist at all. Both now export the mesh that
+   * is actually loaded in the viewer, baked to world space through
+   * m3FilteredGroup — every provider's mesh, every format. FBX is an
+   * ASCII 7.4 writer (geometry + material color; GLB keeps textures). */
+  function m3DownloadBlob(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+  }
+  async function m3ExportOBJ(filename) {
+    if (!m3three || !m3three.model) return false;
+    const { OBJExporter } = await import("three/addons/exporters/OBJExporter.js");
+    const text = new OBJExporter().parse(m3FilteredGroup(() => true));
+    m3DownloadBlob(new Blob([text], { type: "text/plain" }), filename);
+    return true;
+  }
+  function m3FBXText(grp) {
+    const f6 = (n) => { const v = Math.abs(n) < 1e-9 ? 0 : n; return v.toFixed(6); };
+    const meshes = [];
+    grp.traverse((o) => { if (o.isMesh) meshes.push(o); });
+    let id = 200000000;
+    const nextId = () => (id += 137);
+    const geoBlocks = [], matBlocks = [], modelBlocks = [], conns = [];
+    meshes.forEach((m, mi) => {
+      const g = m.geometry;
+      const pos = g.attributes.position, nor = g.attributes.normal, uv = g.attributes.uv;
+      const vcount = pos.count;
+      const verts = [], pvi = [], nors = [], uvs = [];
+      for (let i = 0; i < vcount; i++) verts.push(f6(pos.getX(i)), f6(pos.getY(i)), f6(pos.getZ(i)));
+      for (let t = 0; t < vcount; t += 3) pvi.push(t, t + 1, -(t + 2) - 1);
+      if (nor) for (let i = 0; i < vcount; i++) nors.push(f6(nor.getX(i)), f6(nor.getY(i)), f6(nor.getZ(i)));
+      if (uv) for (let i = 0; i < vcount; i++) uvs.push(f6(uv.getX(i)), f6(uv.getY(i)));
+      const gid = nextId(), matId = nextId(), modId = nextId();
+      const name = "mesh" + mi;
+      let gb = "  Geometry: " + gid + ', "Geometry::' + name + '", "Mesh" {\n' +
+        "    Vertices: *" + verts.length + " {\n      a: " + verts.join(",") + "\n    }\n" +
+        "    PolygonVertexIndex: *" + pvi.length + " {\n      a: " + pvi.join(",") + "\n    }\n";
+      if (nors.length) gb += "    LayerElementNormal: 0 {\n      Version: 101\n      Name: \"\"\n" +
+        '      MappingInformationType: "ByPolygonVertex"\n      ReferenceInformationType: "Direct"\n' +
+        "      Normals: *" + nors.length + " {\n        a: " + nors.join(",") + "\n      }\n    }\n";
+      if (uvs.length) gb += "    LayerElementUV: 0 {\n      Version: 101\n      Name: \"map1\"\n" +
+        '      MappingInformationType: "ByPolygonVertex"\n      ReferenceInformationType: "Direct"\n' +
+        "      UV: *" + uvs.length + " {\n        a: " + uvs.join(",") + "\n      }\n    }\n";
+      gb += "    LayerElementMaterial: 0 {\n      Version: 101\n      Name: \"\"\n" +
+        '      MappingInformationType: "AllSame"\n      ReferenceInformationType: "IndexToDirect"\n' +
+        "      Materials: *1 {\n        a: 0\n      }\n    }\n    Layer: 0 {\n      Version: 100\n";
+      if (nors.length) gb += '      LayerElement: {\n        Type: "LayerElementNormal"\n        TypedIndex: 0\n      }\n';
+      gb += '      LayerElement: {\n        Type: "LayerElementMaterial"\n        TypedIndex: 0\n      }\n';
+      if (uvs.length) gb += '      LayerElement: {\n        Type: "LayerElementUV"\n        TypedIndex: 0\n      }\n';
+      gb += "    }\n  }";
+      geoBlocks.push(gb);
+      const col = (m.material && m.material.color) ? m.material.color : { r: 0.8, g: 0.8, b: 0.8 };
+      matBlocks.push("  Material: " + matId + ', "Material::' + name + '", "" {\n    Version: 102\n    ShadingModel: "phong"\n    MultiLayer: 0\n    Properties70: {\n' +
+        '      P: "DiffuseColor", "ColorRGB", "Color", "",' + f6(col.r) + "," + f6(col.g) + "," + f6(col.b) + "\n" +
+        '      P: "SpecularColor", "ColorRGB", "Color", "",0.200000,0.200000,0.200000\n' +
+        '      P: "ShininessExponent", "double", "Number", "",20.000000\n    }\n  }');
+      modelBlocks.push("  Model: " + modId + ', "Model::' + name + '", "Mesh" {\n    Version: 232\n    Properties70: {\n' +
+        '      P: "Lcl Translation", "Lcl Translation", "", "A",0,0,0\n' +
+        '      P: "Lcl Rotation", "Lcl Rotation", "", "A",0,0,0\n' +
+        '      P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1\n    }\n    Shading: T\n    Culling: "CullingOff"\n  }');
+      conns.push('  C: "OO",' + gid + "," + modId + '\n  C: "OO",' + matId + "," + modId + '\n  C: "OO",' + modId + ",0");
+    });
+    const total = geoBlocks.length + matBlocks.length + modelBlocks.length;
+    return "; FBX 7.4.0 project file\n; Exported by m4ster FrameLab — geometry + color; use GLB for textures\n; ----------------------------------------------------\n" +
+      "FBXHeaderExtension: {\n  FBXHeaderVersion: 1003\n  FBXVersion: 7400\n  Creator: \"m4ster FrameLab\"\n}\n" +
+      "GlobalSettings: {\n  Version: 1000\n  Properties70: {\n" +
+      '    P: "UpAxis", "int", "Integer", "",2\n    P: "UpAxisSign", "int", "Integer", "",1\n' +
+      '    P: "FrontAxis", "int", "Integer", "",1\n    P: "FrontAxisSign", "int", "Integer", "",-1\n' +
+      '    P: "CoordAxis", "int", "Integer", "",0\n    P: "CoordAxisSign", "int", "Integer", "",1\n' +
+      '    P: "UnitScaleFactor", "double", "Number", "",1\n  }\n}\n' +
+      "Definitions: {\n  Version: 100\n  Count: " + (total + 1) + "\n" +
+      '  ObjectType: "GlobalSettings" {\n    Count: 1\n  }\n' +
+      '  ObjectType: "Geometry" {\n    Count: ' + geoBlocks.length + "\n  }\n" +
+      '  ObjectType: "Material" {\n    Count: ' + matBlocks.length + "\n  }\n" +
+      '  ObjectType: "Model" {\n    Count: ' + modelBlocks.length + "\n  }\n}\n" +
+      "Objects: {\n" + geoBlocks.join("\n") + "\n" + matBlocks.join("\n") + "\n" + modelBlocks.join("\n") + "\n}\n" +
+      "Connections: {\n" + conns.join("\n") + "\n}\n";
+  }
+  async function m3ExportFBX(filename) {
+    if (!m3three || !m3three.model) return false;
+    const text = m3FBXText(m3FilteredGroup(() => true));
+    m3DownloadBlob(new Blob([text], { type: "text/plain" }), filename);
+    return true;
+  }
+  window.M3_EXPORT_FMT = async function (fmt, filename) {
+    if (fmt === "obj") return m3ExportOBJ(filename);
+    if (fmt === "fbx") return m3ExportFBX(filename);
+    return false;
+  };
   window.M3_MESH_COUNT = function () {
     if (!m3three || !m3three.model) return 0;
     let n = 0;
@@ -6317,6 +6411,14 @@ function wire3DLab() {
     const nameEl = document.getElementById("m3ExpName");
     const fmtEl = document.getElementById("m3ExpFmt");
     const base = (((nameEl && nameEl.value.trim()) || "framelab-mesh").replace(/[^\w\- ]+/g, "").trim()) || "framelab-mesh";
+    if (fmtEl && (fmtEl.value === "obj" || fmtEl.value === "fbx") && window.M3_EXPORT_FMT) {
+      const fv = fmtEl.value;
+      window.M3_EXPORT_FMT(fv, base + "." + fv).then((ok) => {
+        if (!ok && glbLink) { glbLink.setAttribute("download", base + ".glb"); glbLink.click(); }
+      });
+      if (expPop) expPop.hidden = true;
+      return;
+    }
     const useObj = !!(fmtEl && fmtEl.value === "obj" && objLink && !objLink.hidden);
     const link = useObj ? objLink : glbLink;
     if (link) { link.setAttribute("download", base + (useObj ? ".obj" : ".glb")); link.click(); }

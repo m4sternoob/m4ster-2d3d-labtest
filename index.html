@@ -395,7 +395,7 @@
   <h2 class="section-title">Frequently asked questions</h2>
   <details class="faq"><summary>Is FrameLab really free?</summary><p>Yes — free forever, no paywall, no credits. It runs on free community GPUs (the AI Horde and public Hugging Face Spaces). The only price is the occasional queue, and AUTO rides it out by switching models for you.</p></details>
   <details class="faq"><summary>Do I need an account or an API key?</summary><p>No account, no signup, no key. If you happen to have a free Hugging Face token, pasting it (it stays in your browser) lifts your daily GPU quota on the Spaces.</p></details>
-  <details class="faq"><summary>What do I get out of it?</summary><p>2D: transparent PNG sprites and sheets. 3D: textured GLB files (plus OBJ from InstantMesh) that drop straight into Unity, Unreal, Godot and Blender — the Engine Bridge in the viewer names the download for each one.</p></details>
+  <details class="faq"><summary>What do I get out of it?</summary><p>2D: transparent PNG sprites and sheets. 3D: textured GLB files, plus OBJ and FBX exports of any mesh, that drop straight into Unity, Unreal, Godot and Blender — the Engine Bridge in the viewer names the download for each one.</p></details>
   <details class="faq"><summary>Who owns what I make?</summary><p>You do. Nothing is uploaded to us and there is no server of ours in the loop — generations run on the public model providers you pick, in your browser session.</p></details>
   <details class="faq"><summary>Why did a generation switch models or fail?</summary><p>Free GPUs run on shared daily quotas. When one model is out of quota or down, AUTO moves to the next proven model on the roster and tells you it switched. The roster is deep on purpose — free generation should never run dry.</p></details>
 </section>
@@ -619,7 +619,8 @@
         <div class="m3-envpop m3-exppop" id="m3ExpPop" hidden>
           <div class="m3-env-head">Export</div>
           <div class="m3-env-row"><span>File name</span><input type="text" id="m3ExpName" value="framelab-mesh" spellcheck="false"></div>
-          <div class="m3-env-row"><span>Format</span><select id="m3ExpFmt"><option value="glb">GLB</option><option value="obj">OBJ</option></select></div>
+          <div class="m3-env-row"><span>Format</span><select id="m3ExpFmt"><option value="glb">GLB</option><option value="obj">OBJ</option><option value="fbx">FBX</option></select></div>
+          <p class="m3-tip" style="margin:2px 0 0">OBJ + FBX are exported from the loaded mesh itself — any provider. FBX carries geometry + color; GLB keeps the textures.</p>
           <div class="m3-env-row"><span>Texture</span><strong id="m3ExpTex">Standard 1024</strong></div>
           <button type="button" class="m3-exp-go" id="m3ExpGo">&#11015; Export — free</button>
         </div>
