@@ -167,7 +167,8 @@
 
     <div id="aiModelBox">
       <div class="field-label">AI model <span class="dim">(swap anytime)</span></div>
-            <select id="aiModel" class="ai-model-select" aria-label="AI image model">
+            <button id="aiModelBtn" class="mp-trigger" type="button" data-mp-title="Model Preference" aria-haspopup="listbox" aria-expanded="false"><span class="mp-name">Auto</span><span class="mp-chip" hidden></span><span class="mp-chev">▾</span></button>
+            <select id="aiModel" class="ai-model-select mp-hidden" aria-label="AI image model">
         <optgroup label="Auto — free chain, self-switching">
           <option value="auto">&#9889; Auto — free models, switches itself on limits</option>
         </optgroup>
@@ -429,7 +430,8 @@
       <p class="m3-topo-note" id="m3TopoNote">High Detail — full-density mesh from the model.</p>
 
       <label class="m3-label" for="m3Provider">Model</label>
-      <select id="m3Provider" class="m3-model-select">
+      <button id="m3ModelBtn" class="mp-trigger dark" type="button" data-mp-title="Model Preference — 3D" aria-haspopup="listbox" aria-expanded="false"><span class="mp-name">AUTO</span><span class="mp-chip" hidden></span><span class="mp-chev">▾</span></button>
+      <select id="m3Provider" class="m3-model-select mp-hidden">
         <option value="auto">AUTO — the hub picks + switches for you</option>
         <option value="sf3d">Stable Fast 3D — fast, textured GLB (~10s)</option>
         <option value="trellis2">TRELLIS.2 — textured, highest detail (~1 min)</option>
@@ -575,6 +577,11 @@
 <!-- phone-only sticky generate bar: thumb-reachable, always visible -->
 <div class="mobile-bar">
   <button id="generateMobile" class="generate">GENERATE SPRITE</button>
+</div>
+
+<div id="mpPop" class="mp-pop" hidden role="listbox" aria-label="Model preference">
+  <div class="mp-head"><span class="mp-title">Model Preference</span><button type="button" class="mp-x" onclick="mpClose()" aria-label="Close model list">✕</button></div>
+  <div class="mp-list"></div>
 </div>
 
 <!-- customize popover: theme switcher + aura controls (tracker's Customize spirit) -->
