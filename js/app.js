@@ -162,7 +162,7 @@ function renderParams() {
         <div class="pfield"><label for="pStates">Variants</label><div class="pal-row"><input type="number" id="pStates" min="1" max="4" value="${d.states}"><button type="button" class="mini-btn" id="pShuffle" title="re-roll variant (new random seed)">&#8635;</button></div></div>
       </div><div class="dim" style="margin-top:8px">Variants = normal / hover / pressed style states, extracted left to right.</div>`;
   } else if (cat === "pixelart") {
-    const px = CATEGORY_DEFAULTS.pixelart;
+    const px = pxState();
     box.innerHTML = `
       <div class="field-label">Image &rarr; pixel art <span class="dim">(100% offline)</span></div><div class="row"><button type="button" class="btn-ghost" id="pxPick" style="text-align:center">Upload image</button><input type="file" id="pxFile" accept="image/*" hidden></div><div class="field-label">Output size</div><div class="px-dims" id="pxDims">
         ${[16, 32, 48, 64, 96, 128].map(s => `<button type="button" class="seg-btn${s === px.w ? " active" : ""}" data-px="${s}">${s}</button>`).join("")}
@@ -328,96 +328,96 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const AI_PROVIDERS = {
   "auto": {
-    note: "Auto chain (Phase 1 trial order): Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
-    keyField: null, auto: true
+    note: "Auto chain: Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). Your live queue position shows while you wait; if the Horde QUEUE is the bottleneck it jumps to Space FLUX instead of hopping models. A free AI Horde key (below) gets priority — the anonymous line runs hundreds deep at peak.",
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue. Saved only in your browser.`, auto: true
   },
   "horde-novaflat": {
     note: "Free, no key. Nova Flat XL — flat-shaded XL style, sprite-friendly.",
-    keyField: null, hordeModel: "Nova Flat XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Nova Flat XL"
   },
   "horde-animagine": {
     note: "Free, no key. Animagine XL — polished modern anime.",
-    keyField: null, hordeModel: "Animagine XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Animagine XL"
   },
   "horde-anything5": {
     note: "Free, no key. Anything v5 — anime all-rounder.",
-    keyField: null, hordeModel: "Anything v5"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Anything v5"
   },
   "horde-dreamshaper": {
     note: "Free, no key. Dreamshaper — the classic all-rounder (SD 1.5).",
-    keyField: null, hordeModel: "Dreamshaper"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Dreamshaper"
   },
   "horde-photon": {
     note: "Free, no key. Photon — clean realistic-leaning renders. Few workers — may queue a while.",
-    keyField: null, hordeModel: "Photon"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Photon"
   },
   "horde-absreality": {
     note: "Free, no key. AbsoluteReality — realistic characters.",
-    keyField: null, hordeModel: "AbsoluteReality"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "AbsoluteReality"
   },
   "horde-flux": {
     note: "Free, no key. FLUX.1 Schnell on community GPUs — top-tier quality, usually 30–90s in the queue.",
-    keyField: null, hordeModel: "Flux.1-Schnell fp8 (Compact)"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Flux.1-Schnell fp8 (Compact)"
   },
   "horde-dreamshaper-xl": {
     note: "Free, no key. DreamShaper XL — versatile, great for game art.",
-    keyField: null, hordeModel: "DreamShaper XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "DreamShaper XL"
   },
   "horde-albedo": {
     note: "Free, no key. AlbedoBase XL — sharp, detailed SDXL renders.",
-    keyField: null, hordeModel: "AlbedoBase XL (SDXL)"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "AlbedoBase XL (SDXL)"
   },
   "horde-rev": {
     note: "Free, no key. Rev Animated — anime and animated-style characters.",
-    keyField: null, hordeModel: "Rev Animated"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Rev Animated"
   },
   "horde-flat2d": {
     note: "Free, no key. Flat-2D Animerge — flat 2D style, made for sprites.",
-    keyField: null, hordeModel: "Flat-2D Animerge"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Flat-2D Animerge"
   },
   "horde-pixel": {
     note: "Free, no key. AIO Pixel Art — the pixel-art specialist.",
-    keyField: null, hordeModel: "AIO Pixel Art"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "AIO Pixel Art"
   },
   "horde-counterfeit": {
     note: "Free, no key. Counterfeit — polished anime renders.",
-    keyField: null, hordeModel: "Counterfeit"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Counterfeit"
   },
   "horde-realvis": {
     note: "Free, no key. Realistic Vision — realistic characters and portraits.",
-    keyField: null, hordeModel: "Realistic Vision"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Realistic Vision"
   },
   "horde-icbinp": {
     note: "Free, no key. ICBINP — photoreal people and scenes.",
-    keyField: null, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "ICBINP - I Can't Believe It's Not Photography"
   },
   "horde-anything": {
     note: "Free, no key. Anything Diffusion — the anime classic.",
-    keyField: null, hordeModel: "Anything Diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Anything Diffusion"
   },
   "horde-zimage": {
     note: "Free, no key. Z-Image-Turbo — new, fast, crisp.",
-    keyField: null, hordeModel: "Z-Image-Turbo"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Z-Image-Turbo"
   },
   "horde-sdxl": {
     note: "Free, no key. SDXL 1.0 — the solid base model.",
-    keyField: null, hordeModel: "SDXL 1.0"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "SDXL 1.0"
   },
   "horde-ghibli": {
     note: "Free, no key. Ghibli Diffusion — soft storybook look.",
-    keyField: null, hordeModel: "Ghibli Diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Ghibli Diffusion"
   },
   "horde-deliberate": {
-    note: "Free, no key. Community GPUs — usually 20–60s. The default.",
-    keyField: null, hordeModel: "Deliberate"
+    note: "Free. The default. The anonymous queue can crawl at peak (hundreds deep) — a free Horde key gets priority.",
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Deliberate"
   },
   "horde-juggernaut": {
     note: "Free, no key. Best free quality — can sit in the queue 1–3 min.",
-    keyField: null, hordeModel: "Juggernaut XL"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "Juggernaut XL"
   },
   "horde-sd": {
     note: "Free, no key. The Horde's quickest model.",
-    keyField: null, hordeModel: "stable_diffusion"
+    keyField: "aihorde", keyLabel: "AI Horde key", keyHint: `Free key: register at <a href="https://aihorde.net/register" target="_blank" rel="noopener">aihorde.net/register</a>, copy your API key, paste it here. Anonymous works too — a key just gets priority in the queue (the anonymous line runs hundreds deep at peak). Saved only in your browser.`, hordeModel: "stable_diffusion"
   },
   "pol-flux": {
     note: "Real FLUX quality.",
@@ -466,13 +466,13 @@ function fitSize(w, h, maxSide, maxPixels) {
 
 async function blobToBitmap(blob) { return createImageBitmap(blob); }
 
-async function hordeGenerate(prompt, w, h, model, onStatus) {
+async function hordeGenerate(prompt, w, h, model, onStatus, apiKey) {
   /* anonymous Horde jobs are capped at 512×512 worth of pixels total —
    * ask for more and the submit is refused outright (HTTP 403) */
   const size = fitSize(w, h, 1024, 512 * 512);
   const headers = {
     "Content-Type": "application/json",
-    "apikey": "0000000000",
+    "apikey": apiKey || "0000000000",
     "Client-Agent": "m4ster-framelab:6.8:web"
   };
   let jobId = null;
@@ -508,7 +508,10 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
     } catch (e) { continue; } // transient poll miss — keep waiting
     if (chk.faulted) fail("AI Horde dropped the job (a worker failed mid-render). Retry — the queue usually clears fast.");
     if (!chk.done) {
-      if (onStatus) onStatus(`AI Horde · ${model} — queued, ~${Math.max(1, chk.wait_time | 0)}s left…`);
+      if (onStatus) {
+        if (chk.queue_position > 0) onStatus(`AI Horde · ${model} — in queue, position ${chk.queue_position}…`);
+        else onStatus(`AI Horde · ${model} — rendering…`);
+      }
       continue;
     }
     const fin = await fetch(`https://stablehorde.net/api/v2/generate/status/${jobId}`, { headers });
@@ -524,7 +527,8 @@ async function hordeGenerate(prompt, w, h, model, onStatus) {
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
     return blobToBitmap(new Blob([bytes], { type: "image/webp" }));
   }
-  fail("AI Horde took over 5 minutes in the free queue — timed out. Retry, or pick Stable Diffusion (the Horde's quickest).");
+  if (apiKey) fail("AI Horde took over 5 minutes in the queue — timed out, even with your key. The Horde is slammed right now; retry in a few minutes.");
+  fail("AI Horde took over 5 minutes in the queue — timed out. The anonymous queue runs hundreds deep at peak; a free AI Horde key (paste it under \"AI model\") gets priority and usually clears in 1–2 minutes.");
 }
 
 async function hfGenerate(prompt, w, h, token, onStatus) {
@@ -634,7 +638,7 @@ async function spaceFluxGenerate(prompt, w, h, onStatus) {
 /* the one door every AI image comes through */
 async function aiGenerateWith(id, prompt, w, h, onStatus) {
   const p = AI_PROVIDERS[id];
-  if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
+  if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus, aiKeyFor(id));
   if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "space-flux") return spaceFluxGenerate(prompt, w, h, onStatus);
@@ -675,6 +679,7 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
   if (aiKeyFor("hf-flux")) chain.splice(1, 0, "hf-flux");
   if (aiKeyFor("pol-flux")) chain.splice(2, 0, "pol-flux");
   let lastErr = null;
+  let fluxDetour = false;
   for (let i = 0; i < chain.length; i++) {
     const mid = chain[i];
     try {
@@ -682,13 +687,27 @@ async function aiGenerateImage(prompt, w, h, onStatus) {
       return await aiGenerateWith(mid, prompt, w, h, onStatus);
     } catch (e) {
       lastErr = e;
+      const msg = String(e.message || e);
+      /* a Horde queue timeout means the QUEUE is the bottleneck, not the
+       * model — hopping to the next Horde model just re-queues behind the
+       * same anonymous line. Detour to Space FLUX once; if that also
+       * fails, stop loud and honest instead of cycling for half an hour. */
+      if (/took over 5 minutes/.test(msg) && mid.indexOf("horde-") === 0 && !fluxDetour) {
+        fluxDetour = true;
+        chain.splice(i + 1, chain.length - (i + 1), "space-flux");
+        onStatus("auto: the Horde queue is the bottleneck today — trying Space FLUX instead…");
+        setStatusBar("warn");
+        continue;
+      }
+      if (mid === "space-flux" && fluxDetour) break;
       const next = chain[i + 1];
       if (next) {
-        onStatus(`auto: ${AI_MODEL_NAMES[mid]} unavailable (${String(e.message || e).slice(0, 90)}) — switching to ${AI_MODEL_NAMES[next]}…`);
+        onStatus(`auto: ${AI_MODEL_NAMES[mid]} unavailable (${msg.slice(0, 90)}) — switching to ${AI_MODEL_NAMES[next]}…`);
         setStatusBar("warn");
       }
     }
   }
+  if (fluxDetour) fail("The free queues are slammed right now — Horde timed out in line and Space FLUX couldn't run either. A free AI Horde key (under \"AI model\") skips most of the Horde queue; otherwise give it a few minutes.");
   fail(`Every free model in the auto chain is unavailable right now. Last word: ${lastErr ? lastErr.message : "unknown"} — retry in a minute, the queues clear fast.`);
 }
 
@@ -3451,6 +3470,25 @@ function pxColorLabel(n) {
   return n === 0 ? "full color" : n + " colors";
 }
 
+/* standalone tools own the panel: in the pixelart/slicer lanes the wizard
+ * framing drops — steps 1-2 hide, the options group carries the tool's own
+ * header (no step number), and a back button returns to the generator. */
+function syncToolChrome() {
+  const tool = state.category === "pixelart" ? "Pixel Converter"
+             : state.category === "slicer" ? "Sprite Slicer" : null;
+  document.querySelectorAll(".ctl-group").forEach(g => {
+    g.classList.toggle("tool-hidden", !!tool && g.id !== "ctlStep3");
+  });
+  const num = document.getElementById("ctlNum3");
+  const lbl = document.getElementById("ctlStepLbl3");
+  const ttl = document.getElementById("ctlTitle3");
+  if (num) num.textContent = tool ? "\u{1F9F0}" : "3";
+  if (lbl) lbl.textContent = tool ? "Standalone tool" : "Step 3";
+  if (ttl) ttl.textContent = tool || "Options";
+  const back = document.getElementById("toolBack");
+  if (back) back.hidden = !tool;
+}
+
 function syncPixelMode() {
   const on = state.category === "pixelart";
   const aside = document.querySelector("aside.controls");
@@ -3460,6 +3498,7 @@ function syncPixelMode() {
   document.body.classList.toggle("mode-pixelart", on);
   const side = $("#pixelSide");
   if (side) side.hidden = !(on && state.pixelart && state.pixelart.src);
+  syncToolChrome();
 }
 
 function pxRender() {
@@ -3780,6 +3819,7 @@ function syncSlicerMode() {
     if (grid) grid.hidden = true;
     if (head) head.hidden = true;
   }
+  syncToolChrome();
 }
 
 /* draw the sheet + live grid overlay on the stage canvas */
@@ -4117,6 +4157,12 @@ function init() {
   wireExport();
   syncPixelMode();
   syncSlicerMode();
+
+  const toolBackBtn = document.getElementById("toolBack");
+  if (toolBackBtn) toolBackBtn.onclick = () => {
+    const t = document.querySelector('.tab[data-cat="character"]');
+    if (t) t.click();
+  };
 
   document.querySelectorAll(".tab").forEach(t => {
     t.onclick = () => {

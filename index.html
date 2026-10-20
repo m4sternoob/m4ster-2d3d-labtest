@@ -144,11 +144,12 @@
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
+    <button id="toolBack" class="tool-back" type="button" hidden>&larr; Back to generator</button>
     <div class="wiz-top" id="wizTop" hidden>
       <div class="wiz-dots" id="wizDots" aria-label="Steps"></div>
       <span class="wiz-count" id="wizCount"></span>
     </div>
-    <section class="ctl-group">
+    <section class="ctl-group" id="ctlStep1">
       <div class="ctl-head"><span class="ctl-num">1</span><div class="ctl-titles"><span class="ctl-step">Step 1</span><h3>What are you making?</h3></div></div>
       <div class="tabs" role="tablist">
         <button class="tab active" data-cat="character" role="tab">Character</button>
@@ -158,7 +159,7 @@
       </div>
     </section>
 
-    <section class="ctl-group">
+    <section class="ctl-group" id="ctlStep2">
       <div class="ctl-head"><span class="ctl-num">2</span><div class="ctl-titles"><span class="ctl-step">Step 2</span><h3>Source &amp; model</h3></div></div>
       <div class="seg" id="sourceSeg">
         <button class="seg-btn active" data-src="ai">AI image</button>
@@ -225,8 +226,8 @@
     </div>
     </section>
 
-    <section class="ctl-group">
-      <div class="ctl-head"><span class="ctl-num">3</span><div class="ctl-titles"><span class="ctl-step">Step 3</span><h3>Options</h3></div></div>
+    <section class="ctl-group" id="ctlStep3">
+      <div class="ctl-head"><span class="ctl-num" id="ctlNum3">3</span><div class="ctl-titles"><span class="ctl-step" id="ctlStepLbl3">Step 3</span><h3 id="ctlTitle3">Options</h3></div></div>
             <div id="params"></div>
       <div id="studioPanel" hidden>
         <div class="field-label">Action <span class="dim">(tap to toggle — these are your animation rows)</span></div>

@@ -1062,6 +1062,17 @@ textarea:focus:not(:focus-visible) { outline: none; }
 }
 .gh-link:hover { color: var(--violet); }
 
+/* standalone tools: no wizard framing in tool lanes */
+.tool-hidden { display: none !important; }
+.tool-back {
+  width: 100%; margin-bottom: 12px; padding: 10px 12px; border-radius: 10px;
+  background: linear-gradient(180deg, #2c2452, #1d1838);
+  border: 1px solid var(--line); color: var(--ink);
+  font: 600 13px var(--mono); cursor: pointer; text-align: center;
+  box-shadow: 0 2px 0 #0d0a1c, inset 0 1px 0 rgba(255, 255, 255, .09);
+}
+.tool-back:active { transform: translateY(1px); box-shadow: 0 1px 0 #0d0a1c, inset 0 1px 0 rgba(255, 255, 255, .09); }
+
 /* ---------- v6.5: image → pixel art converter ---------- */
 /* pixelart mode hides the sprite-pipeline controls; the converter owns the lab */
 .controls.mode-pixelart #prompt,
