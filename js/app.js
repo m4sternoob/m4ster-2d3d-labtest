@@ -328,8 +328,32 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 const AI_PROVIDERS = {
   "auto": {
-    note: "Auto chain: 16 free models in ranked order — FLUX.1 Schnell → Juggernaut XL → DreamShaper XL → Deliberate → AlbedoBase XL → Rev Animated → Flat-2D → Pixel Art → Counterfeit → Realistic Vision → ICBINP → Anything → Z-Image → SDXL → Ghibli → Stable Diffusion (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
+    note: "Auto chain (Phase 1 trial order): Deliberate → Juggernaut XL → Dreamshaper → AlbedoBase XL → Stable Diffusion → Flat-2D Animerge (your FLUX keys slot in near the front if saved). If one hits a limit or fails, it switches to the next BY ITSELF. No key, no signup.",
     keyField: null, auto: true
+  },
+  "horde-novaflat": {
+    note: "Free, no key. Nova Flat XL — flat-shaded XL style, sprite-friendly.",
+    keyField: null, hordeModel: "Nova Flat XL"
+  },
+  "horde-animagine": {
+    note: "Free, no key. Animagine XL — polished modern anime.",
+    keyField: null, hordeModel: "Animagine XL"
+  },
+  "horde-anything5": {
+    note: "Free, no key. Anything v5 — anime all-rounder.",
+    keyField: null, hordeModel: "Anything v5"
+  },
+  "horde-dreamshaper": {
+    note: "Free, no key. Dreamshaper — the classic all-rounder (SD 1.5).",
+    keyField: null, hordeModel: "Dreamshaper"
+  },
+  "horde-photon": {
+    note: "Free, no key. Photon — clean realistic-leaning renders. Few workers — may queue a while.",
+    keyField: null, hordeModel: "Photon"
+  },
+  "horde-absreality": {
+    note: "Free, no key. AbsoluteReality — realistic characters.",
+    keyField: null, hordeModel: "AbsoluteReality"
   },
   "horde-flux": {
     note: "Free, no key. FLUX.1 Schnell on community GPUs — top-tier quality, usually 30–90s in the queue.",
@@ -404,6 +428,10 @@ const AI_PROVIDERS = {
     note: "FLUX.1 schnell through Hugging Face — fast FLUX renders.",
     keyField: "huggingface", keyLabel: "Hugging Face token",
     keyHint: `Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> → New token (Read) → paste here. Saved only in your browser.`
+  },
+  "space-flux": {
+    note: "Free, no key. FLUX.1-schnell on the official Black Forest Labs Space — proven in the lab at ~5s per still with the flattest keyable backgrounds of any provider here. Runs on the shared free ZeroGPU pool (same pool as the 3D Lab); if you've saved a Hugging Face token for HF FLUX it automatically boosts this too.",
+    keyField: null
   }
 };
 
@@ -536,22 +564,90 @@ async function polFluxGenerate(prompt, w, h, key, onStatus) {
   return blobToBitmap(await res.blob());
 }
 
+/* HF Space FLUX.1-schnell (Phase 2 Trial A, proven 2026-10-20): anonymous
+ * Gradio queue on the official BFL Space — fn 2 "infer", one session per
+ * run, SSE until process_completed. A saved HF token (the same one the
+ * hf-flux slot stores) is sent when present: it lifts the ZeroGPU quota. */
+async function spaceFluxGenerate(prompt, w, h, onStatus) {
+  const host = "https://black-forest-labs-flux-1-schnell.hf.space";
+  const clamp = n => Math.max(256, Math.min(1024, Math.round(n / 16) * 16));
+  const headers = { "Content-Type": "application/json" };
+  const token = (aiKeys()["huggingface"] || "").trim();
+  if (token) headers["Authorization"] = "Bearer " + token;
+  const session = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  const deadline = Date.now() + 5 * 60 * 1000;
+  const timedFetch = async (url, opts) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+    try { return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal })); }
+    finally { clearTimeout(t); }
+  };
+  try {
+    if (onStatus) onStatus("Space FLUX — joining the free GPU queue…");
+    const join = await timedFetch(host + "/gradio_api/queue/join", {
+      method: "POST", headers,
+      body: JSON.stringify({ fn_index: 2, data: [prompt, 0, true, clamp(w), clamp(h), 4], session_hash: session })
+    });
+    if (!join.ok) fail(`Space FLUX couldn't take the job (HTTP ${join.status}). The free GPU pool may be drained — retry in a bit, or pick another model.`);
+    if (onStatus) onStatus("Space FLUX — generating (usually a few seconds)…");
+    const res = await timedFetch(host + "/gradio_api/queue/data?session_hash=" + encodeURIComponent(session), { headers });
+    if (!res.ok || !res.body) fail("Space FLUX queue stream failed. Retry in a moment.");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.indexOf("data:") !== 0) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (evt.msg === "process_completed") {
+          const out = evt.output || {};
+          if (evt.success === false || !out.data || !out.data[0]) {
+            fail("Space FLUX reported a failure: " + String(out.error || evt.error || "unknown error"));
+          }
+          const fd = out.data[0];
+          const url = fd && fd.url ? fd.url : (fd && fd.path ? host + "/gradio_api/file=" + fd.path : null);
+          if (!url) fail("Space FLUX finished but returned no image. Retry once — if it repeats, pick another model.");
+          const imgRes = await timedFetch(url, { headers });
+          if (!imgRes.ok) fail("Space FLUX image download failed (HTTP " + imgRes.status + ").");
+          return blobToBitmap(await imgRes.blob());
+        }
+        if (evt.msg === "process_error") {
+          fail("Space FLUX reported an error: " + String(evt.error || "unknown error"));
+        }
+      }
+    }
+    fail("Space FLUX queue stream ended early. Retry in a moment.");
+  } catch (e) {
+    if (e && e.message && /^(Space FLUX|This model|Unknown AI)/.test(e.message)) throw e;
+    if (e && e.name === "AbortError") fail("Space FLUX took over 5 minutes in the free queue — timed out. Retry, or pick another model.");
+    fail("Space FLUX is unreachable right now (network). Retry in a moment, or pick another model.");
+  }
+}
+
 /* the one door every AI image comes through */
 async function aiGenerateWith(id, prompt, w, h, onStatus) {
   const p = AI_PROVIDERS[id];
   if (p.hordeModel) return hordeGenerate(prompt, w, h, p.hordeModel, onStatus);
   if (id === "pol-flux") return polFluxGenerate(prompt, w, h, needKey(id), onStatus);
   if (id === "hf-flux") return hfGenerate(prompt, w, h, needKey(id), onStatus);
+  if (id === "space-flux") return spaceFluxGenerate(prompt, w, h, onStatus);
   fail("Unknown AI model selected — pick one from the list.");
 }
 
-/* the hub roster, ranked best → least (his order, 2026-10-20): AUTO walks
- * this list top-down; saved FLUX keys slot in near the front */
+/* AUTO chain — Phase 1 trial order (HUB roadmap, 2026-10-20; supersedes
+ * the earlier 16-model ranked chain by his latest directive — the manual
+ * dropdown still carries the full roster). Saved FLUX keys slot in near
+ * the front. */
 const AI_AUTO_CHAIN = [
-  "horde-flux", "horde-juggernaut", "horde-dreamshaper-xl", "horde-deliberate",
-  "horde-albedo", "horde-rev", "horde-flat2d", "horde-pixel",
-  "horde-counterfeit", "horde-realvis", "horde-icbinp", "horde-anything",
-  "horde-zimage", "horde-sdxl", "horde-ghibli", "horde-sd"
+  "horde-deliberate", "horde-juggernaut", "horde-dreamshaper",
+  "horde-albedo", "horde-sd", "horde-flat2d"
 ];
 const AI_MODEL_NAMES = {
   "horde-flux": "FLUX.1 Schnell", "horde-juggernaut": "Juggernaut XL",
@@ -562,7 +658,11 @@ const AI_MODEL_NAMES = {
   "horde-icbinp": "ICBINP", "horde-anything": "Anything Diffusion",
   "horde-zimage": "Z-Image-Turbo", "horde-sdxl": "SDXL 1.0",
   "horde-ghibli": "Ghibli Diffusion", "horde-sd": "Stable Diffusion",
-  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1"
+  "horde-novaflat": "Nova Flat XL", "horde-animagine": "Animagine XL",
+  "horde-anything5": "Anything v5", "horde-dreamshaper": "Dreamshaper",
+  "horde-photon": "Photon", "horde-absreality": "AbsoluteReality",
+  "pol-flux": "Pollinations FLUX", "hf-flux": "HF FLUX.1",
+  "space-flux": "Space FLUX"
 };
 
 /* AUTO mode: walk the free chain; a limit, a refusal or a dead queue on one
@@ -3696,6 +3796,7 @@ function init() {
   renderParams();
   wireStudio();
   wireFlip();
+  wire3DLab();
   syncStudio();
   wireExport();
   syncPixelMode();
@@ -4783,6 +4884,499 @@ function wireFlip() {
   if (saved === "3d") applyDim("3d");
 }
 
+/* ============ 3D LAB — image → mesh on free HF Spaces (test build) ========
+ * The providers were proven end-to-end in the provider lab
+ * (~/workspace/framelab-provider-lab/results-3d-round1.json + round2):
+ * no HF token, no cookies, real GLB out. Stable Fast 3D speaks Gradio 4
+ * at the space root; InstantMesh and TRELLIS.2 speak Gradio 5/6 under
+ * /gradio_api. Chain order inside each provider is mandatory — the
+ * spaces hold gr.State server-side per session_hash, and skipping a step
+ * fails server-side. ZeroGPU quota errors are switch signals in AUTO:
+ * the free GPU budget is per-IP and shared, so a busy budget on one
+ * space says nothing about the next. An optional HF token (the SAME one
+ * the 2D side stores for HF FLUX — localStorage "m4ster.aiKeys", JSON
+ * property "huggingface", see aiKeyFor) lifts that quota: when saved, it
+ * rides every request below as an Authorization header. It is read once
+ * at run start into M3_TOKEN — never logged, never sent anywhere else. */
+const M3_PROVIDERS = {
+  sf3d: { name: "Stable Fast 3D", host: "https://stabilityai-stable-fast-3d.hf.space", base: "" },
+  trellis2: { name: "TRELLIS.2", host: "https://microsoft-trellis-2.hf.space", base: "/gradio_api" },
+  instantmesh: { name: "InstantMesh", host: "https://tencentarc-instantmesh.hf.space", base: "/gradio_api" },
+  trellis: { name: "TRELLIS (community)", host: "https://trellis-community-trellis.hf.space", base: "/gradio_api" },
+  "hunyuan-mini": { name: "Hunyuan3D-2 Mini Turbo", host: "https://tencent-hunyuan3d-2mini-turbo.hf.space", base: "" }
+};
+const M3_TIMEOUT_MS = 4 * 60 * 1000; /* per provider, whole chain */
+let M3_TOKEN = "";
+function m3AuthHeaders() {
+  return M3_TOKEN ? { "Authorization": "Bearer " + M3_TOKEN } : {};
+}
+
+function m3Session() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+function m3FileUrl(prov, fd) {
+  if (!fd) return null;
+  if (fd.url && /^https?:/.test(fd.url)) return fd.url;
+  if (fd.url) return prov.host + (fd.url.charAt(0) === "/" ? fd.url : prov.base + "/file=" + fd.url);
+  if (fd.path) return prov.host + prov.base + "/file=" + fd.path;
+  return null;
+}
+function m3TimeoutErr() {
+  return new Error("timed out after 4 minutes — the free GPU queue is backed up. Wait a bit and retry.");
+}
+/* fetch with a deadline; an abort becomes a clear timeout error */
+async function m3Fetch(url, opts, deadline) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+  try {
+    const o = Object.assign({}, opts, { signal: ctrl.signal });
+    if (M3_TOKEN) o.headers = Object.assign({}, opts.headers || {}, m3AuthHeaders());
+    return await fetch(url, o);
+  } catch (e) {
+    if (e && e.name === "AbortError") throw m3TimeoutErr();
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+async function m3Upload(prov, file, deadline) {
+  const form = new FormData();
+  /* field name MUST be "files" — "files[]" silently returns [] */
+  form.append("files", file, file.name || "image.png");
+  const res = await m3Fetch(prov.host + prov.base + "/upload", { method: "POST", body: form }, deadline);
+  if (!res.ok) throw new Error("image upload failed (HTTP " + res.status + ")");
+  const paths = await res.json();
+  if (!Array.isArray(paths) || !paths[0]) throw new Error("image upload returned no file path");
+  return paths[0];
+}
+function m3FileData(prov, path, file) {
+  return {
+    path: path,
+    url: prov.host + prov.base + "/file=" + path,
+    orig_name: file.name || "image.png",
+    mime_type: file.type || "image/png",
+    is_stream: false
+  };
+}
+/* join the Gradio queue, then read the SSE stream until process_completed.
+ * Resolves with the call's output data array; throws loud on any failure. */
+async function m3Call(prov, session, fnIndex, data, deadline) {
+  const join = await m3Fetch(prov.host + prov.base + "/queue/join", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fn_index: fnIndex, data: data, session_hash: session })
+  }, deadline);
+  if (!join.ok) throw new Error("couldn't join the free queue (HTTP " + join.status + ")");
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), Math.max(1000, deadline - Date.now()));
+  try {
+    const res = await fetch(prov.host + prov.base + "/queue/data?session_hash=" + encodeURIComponent(session), { signal: ctrl.signal, headers: m3AuthHeaders() });
+    if (!res.ok || !res.body) throw new Error("queue stream failed (HTTP " + res.status + ")");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (line.indexOf("data:") !== 0) continue;
+        let evt;
+        try { evt = JSON.parse(line.slice(5)); } catch (e) { continue; }
+        if (evt.msg === "process_completed") {
+          const out = evt.output || {};
+          if (evt.success === false || out.error || !out.data) {
+            throw new Error(String(out.error || evt.error || "the provider reported a failure"));
+          }
+          return out.data;
+        }
+        if (evt.msg === "process_error") {
+          throw new Error(String(evt.error || "the provider reported an error"));
+        }
+      }
+    }
+    throw new Error("the queue stream ended before the mesh finished");
+  } catch (e) {
+    if (e && e.name === "AbortError") throw m3TimeoutErr();
+    throw e;
+  } finally { clearTimeout(timer); }
+}
+async function m3FetchBlob(url, deadline) {
+  const res = await m3Fetch(url, {}, deadline);
+  if (!res.ok) throw new Error("mesh download failed (HTTP " + res.status + ")");
+  return res.blob();
+}
+
+/* Stable Fast 3D: check bg → (remove bg) → run. fn 5 eats server-side state
+ * populated by the earlier steps, so the order cannot be shortcut. */
+async function m3RunSF3D(file, say) {
+  const prov = M3_PROVIDERS.sf3d, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("Stable Fast 3D — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("Stable Fast 3D — checking the background…");
+  const step1 = await m3Call(prov, session, 4, [fd, 0.85], deadline);
+  const btn = step1 && step1[0];
+  const btnVal = btn && typeof btn === "object" ? btn.value : btn;
+  if (btnVal === "Remove Background") {
+    say("Stable Fast 3D — removing the background…");
+    await m3Call(prov, session, 5, ["Remove Background", fd, null, 0.85, "None", -1, 1024], deadline);
+  }
+  say("Stable Fast 3D — building your mesh (usually ~10 seconds)…");
+  const step3 = await m3Call(prov, session, 5, ["Run", fd, null, 0.85, "None", -1, 1024], deadline);
+  const upd = step3 && step3[4];
+  const glbFd = upd && typeof upd === "object" && "value" in upd ? upd.value : upd;
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("Stable Fast 3D finished but returned no mesh file");
+  say("Stable Fast 3D — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* InstantMesh: preprocess → multiview → make3d. The raw multiview state
+ * serializes as null over the API, so make3d gets the returned show image
+ * (output[1] of generate_mvs) — the proven path from the lab round. */
+async function m3RunInstantMesh(file, say) {
+  const prov = M3_PROVIDERS.instantmesh, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("InstantMesh — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("InstantMesh — preparing the image…");
+  const pre = await m3Call(prov, session, 2, [fd, true], deadline);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("InstantMesh preprocessing returned no image");
+  say("InstantMesh — dreaming up six views of your subject…");
+  const mvs = await m3Call(prov, session, 3, [processed, 75, 42], deadline);
+  const showImg = mvs && mvs[1];
+  if (!showImg) throw new Error("InstantMesh returned no multiview image");
+  say("InstantMesh — building your mesh…");
+  const made = await m3Call(prov, session, 4, [showImg], deadline);
+  const objFd = made && made[0], glbFd = made && made[1];
+  const glbUrl = m3FileUrl(prov, glbFd);
+  if (!glbUrl) throw new Error("InstantMesh finished but returned no mesh file");
+  say("InstantMesh — downloading your mesh…");
+  const glb = await m3FetchBlob(glbUrl, deadline);
+  let obj = null;
+  const objUrl = m3FileUrl(prov, objFd);
+  if (objUrl) { try { obj = await m3FetchBlob(objUrl, deadline); } catch (e) { obj = null; } }
+  return { glb: glb, obj: obj };
+}
+
+/* TRELLIS.2: start session → preprocess → image_to_3d → extract_glb.
+ * The 3D state stays server-side per session (extract_glb takes null for
+ * it). image_to_3d runs the UI defaults at Resolution "1024". File
+ * outputs may arrive wrapped as {value: FileData, __type__: "update"} —
+ * unwrap before use, same trap as SF3D's GLB output. */
+async function m3RunTrellis2(file, say) {
+  const prov = M3_PROVIDERS.trellis2, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("TRELLIS.2 — starting a session on the free GPU…");
+  await m3Call(prov, session, 2, [], deadline);
+  say("TRELLIS.2 — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("TRELLIS.2 — removing the background…");
+  const pre = await m3Call(prov, session, 4, [fd], deadline);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("TRELLIS.2 preprocessing returned no image");
+  say("TRELLIS.2 — building your textured mesh (usually ~1 minute)…");
+  await m3Call(prov, session, 7, [processed, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
+  say("TRELLIS.2 — packing the GLB…");
+  const made = await m3Call(prov, session, 9, [null, 300000, 2048], deadline);
+  const rawFd = made && made[0];
+  const glbFd = rawFd && typeof rawFd === "object" && "value" in rawFd ? rawFd.value : rawFd;
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("TRELLIS.2 finished but returned no mesh file");
+  say("TRELLIS.2 — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* TRELLIS (community space, trellis-community/TRELLIS): start session →
+ * preprocess → ONE call, generate_and_extract_glb. The endpoint map was
+ * verified live against the space's /config on 2026-10-20 (RUNNING on
+ * ZeroGPU, Gradio 5.34): fn 4 start_session (fires on app load), fn 8
+ * preprocess_image (fires on image upload), fn 11 generate_and_extract_glb
+ * — inputs are the UI defaults read off that config, in order:
+ * [image, multi-image gallery, session state, seed, sparse-structure
+ * guidance, sparse steps, SLAT guidance, SLAT steps, multi-image
+ * algorithm, simplify, texture size]. The session state stays
+ * server-side per session_hash, so it goes in as null. The GLB lands in
+ * output[2] (the Model3D component); output[3] is the Download button —
+ * both may arrive {value: FileData, __type__: "update"} wrapped, the
+ * same trap as TRELLIS.2's output, so unwrap before use. */
+async function m3RunTrellis(file, say) {
+  const prov = M3_PROVIDERS.trellis, session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("TRELLIS (community) — starting a session on the free GPU…");
+  await m3Call(prov, session, 4, [], deadline);
+  say("TRELLIS (community) — uploading your image…");
+  const fd = m3FileData(prov, await m3Upload(prov, file, deadline), file);
+  say("TRELLIS (community) — removing the background…");
+  const pre = await m3Call(prov, session, 8, [fd], deadline);
+  const processed = pre && pre[0];
+  if (!processed) throw new Error("TRELLIS (community) preprocessing returned no image");
+  say("TRELLIS (community) — building your mesh (usually ~1 minute)…");
+  const made = await m3Call(prov, session, 11, [processed, [], null, 0, 7.5, 12, 3.0, 12, "stochastic", 0.95, 1024], deadline);
+  const unwrap = (v) => v && typeof v === "object" && "value" in v ? v.value : v;
+  const glbFd = unwrap(made && made[2]) || unwrap(made && made[3]);
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("TRELLIS (community) finished but returned no mesh file");
+  say("TRELLIS (community) — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+/* Hunyuan3D-2 Mini Turbo: ONE call, shape_generation (fn 4). Gradio 4
+ * at the space root, like SF3D. The 13 inputs are the UI defaults for
+ * the distilled Turbo mode: [text prompt (null — image mode), image,
+ * four multiview slots (null — single image), steps 5, guidance 5.0,
+ * seed 1234, octree 256, remove background true, chunks 8000,
+ * randomize seed true]. SHAPE ONLY: the mesh comes out untextured —
+ * the space's own texture stage fails on its side (PyMeshLabException,
+ * lab round 3), so there is no second call to make. The GLB arrives in
+ * output[0], a bare FileData in the proven run — but the sibling 2.1
+ * space wrapped outputs as {value: FileData}, so unwrap defensively.
+ * Lab ops note: the first upload once timed out while the space was
+ * cold-starting; upload is a non-GPU path, so retry it ONCE on a
+ * network/timeout error before calling the provider failed. */
+async function m3RunHunyuanMini(file, say) {
+  const prov = M3_PROVIDERS["hunyuan-mini"], session = m3Session();
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  say("Hunyuan3D-2 Mini Turbo — uploading your image…");
+  let upPath;
+  try {
+    upPath = await m3Upload(prov, file, deadline);
+  } catch (e) {
+    const msg = e && e.message ? String(e.message) : String(e);
+    if (!(e instanceof TypeError) && !/timed out|network/i.test(msg)) throw e;
+    say("Hunyuan3D-2 Mini Turbo — the upload hit a snag (the space may be waking up) — retrying it once…");
+    upPath = await m3Upload(prov, file, deadline);
+  }
+  const fd = m3FileData(prov, upPath, file);
+  say("Hunyuan3D-2 Mini Turbo — building your mesh (usually ~15 seconds)…");
+  const made = await m3Call(prov, session, 4, [null, fd, null, null, null, null, 5, 5.0, 1234, 256, true, 8000, true], deadline);
+  const rawFd = made && made[0];
+  const glbFd = rawFd && typeof rawFd === "object" && "value" in rawFd ? rawFd.value : rawFd;
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("Hunyuan3D-2 Mini Turbo finished but returned no mesh file");
+  say("Hunyuan3D-2 Mini Turbo — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
+function wire3DLab() {
+  const fileInput = document.getElementById("m3File");
+  if (!fileInput) return;
+  const drop = document.getElementById("m3Drop");
+  const thumb = document.getElementById("m3Thumb");
+  const dropText = document.getElementById("m3DropText");
+  const provSel = document.getElementById("m3Provider");
+  const tokenInput = document.getElementById("m3Token");
+  const useChar = document.getElementById("m3UseChar");
+  const viewer = document.getElementById("m3Viewer");
+  const go = document.getElementById("m3Go");
+  const status = document.getElementById("m3Status");
+  const result = document.getElementById("m3Result");
+  const glbLink = document.getElementById("m3Glb");
+  const objLink = document.getElementById("m3Obj");
+  const glbSize = document.getElementById("m3GlbSize");
+  const objSize = document.getElementById("m3ObjSize");
+  const resultNote = document.getElementById("m3ResultNote");
+  let file = null, running = false, objUrls = [];
+
+  const fmtSize = (n) => n >= 1048576 ? (n / 1048576).toFixed(2) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+  const shortErr = (e) => {
+    const m = e && e.message ? String(e.message) : String(e);
+    return m.length > 140 ? m.slice(0, 140) + "…" : m;
+  };
+  /* ZeroGPU quota refusals ("quota" / "GPU duration" in the message) mean
+   * the shared free GPU budget is busy right now — a switch signal in
+   * AUTO, not a dead end. */
+  const isQuotaErr = (e) => /quota|gpu duration/i.test(e && e.message ? String(e.message) : String(e));
+  function say(t, isErr) {
+    status.textContent = t;
+    status.classList.toggle("err", !!isErr);
+  }
+  function setFile(f) {
+    if (!f) return;
+    if (!/^image\//.test(f.type || "")) { say("That's not an image — pick a PNG or JPG.", true); return; }
+    file = f;
+    thumb.src = URL.createObjectURL(f);
+    thumb.hidden = false;
+    dropText.innerHTML = "";
+    const strong = document.createElement("strong");
+    strong.textContent = f.name;
+    const span = document.createElement("span");
+    span.className = "dim";
+    span.textContent = fmtSize(f.size) + " — click or drop to change it";
+    dropText.appendChild(strong);
+    dropText.appendChild(document.createElement("br"));
+    dropText.appendChild(span);
+    go.disabled = running;
+    result.hidden = true;
+    hideGlbPreview();
+    say("Ready — hit GENERATE MESH. Free, as always.");
+  }
+  drop.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); }
+  });
+  fileInput.addEventListener("change", () => setFile(fileInput.files && fileInput.files[0]));
+  ["dragover", "dragenter"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop", (e) => {
+    const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (f) setFile(f);
+  });
+
+  /* optional HF token — same storage, same shape, same save-on-type
+   * behavior as the 2D side's key field: localStorage "m4ster.aiKeys",
+   * JSON property "huggingface". One token serves both sides of the hub. */
+  if (tokenInput) {
+    tokenInput.value = aiKeys().huggingface || "";
+    tokenInput.addEventListener("input", () => {
+      const keys = aiKeys();
+      keys.huggingface = tokenInput.value.trim();
+      try { localStorage.setItem(LS_AI_KEYS, JSON.stringify(keys)); } catch (e) {}
+    });
+  }
+
+  /* bridge: the latest 2D result (state.rows[0].frames[0] — a canvas in
+   * this build) becomes the 3D panel's image, through the exact same
+   * setFile path as an upload, so thumbnail + Generate behave identically */
+  if (useChar) useChar.addEventListener("click", async () => {
+    const frame = state.rows && state.rows[0] && state.rows[0].frames && state.rows[0].frames[0];
+    if (!frame) {
+      say("No 2D character yet — generate a 2D character first (flip to 2D · Sprites, make one, then come back and use it here).", true);
+      return;
+    }
+    try {
+      let blob = null;
+      if (typeof frame.toBlob === "function") {
+        blob = await new Promise((res) => frame.toBlob(res, "image/png"));
+      }
+      if (!blob) {
+        const c = makeCanvas(frame.width, frame.height);
+        c.getContext("2d").drawImage(frame, 0, 0);
+        blob = await new Promise((res) => c.toBlob(res, "image/png"));
+      }
+      if (!blob) throw new Error("the frame could not be read");
+      setFile(new File([blob], "character.png", { type: "image/png" }));
+      say("Your 2D character is loaded — hit GENERATE MESH.");
+    } catch (e) {
+      say("Couldn't load your 2D character (" + shortErr(e) + ") — upload the image instead.", true);
+    }
+  });
+
+  /* in-browser GLB preview: Google's <model-viewer>, lazy-loaded ONLY
+   * after a generation succeeds. A preview failure (CDN down, WebGL
+   * missing) must never fail the generation — the download stands. */
+  async function showGlbPreview(url) {
+    if (!viewer) return;
+    try {
+      await import("https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js");
+      viewer.src = url;
+      viewer.hidden = false;
+    } catch (e) {
+      viewer.hidden = true;
+    }
+  }
+  function hideGlbPreview() {
+    if (!viewer) return;
+    viewer.hidden = true;
+    viewer.removeAttribute("src");
+  }
+
+  async function runOne(id) {
+    if (id === "sf3d") return m3RunSF3D(file, say);
+    if (id === "trellis2") return m3RunTrellis2(file, say);
+    if (id === "trellis") return m3RunTrellis(file, say);
+    if (id === "hunyuan-mini") return m3RunHunyuanMini(file, say);
+    return m3RunInstantMesh(file, say);
+  }
+
+  go.addEventListener("click", async () => {
+    if (!file || running) return;
+    running = true;
+    go.disabled = true;
+    go.textContent = "WORKING…";
+    result.hidden = true;
+    hideGlbPreview();
+    objUrls.forEach((u) => URL.revokeObjectURL(u));
+    objUrls = [];
+    const mode = provSel.value;
+    /* the optional token is read once, here, at run start — every
+     * request this run makes then carries it (see m3AuthHeaders) */
+    M3_TOKEN = aiKeyFor("hf-flux");
+    const t0 = Date.now();
+    try {
+      let out, usedName, usedId;
+      if (mode === "auto") {
+        /* AUTO chain: fast SF3D → textured TRELLIS.2 → InstantMesh →
+         * TRELLIS (community) → Hunyuan3D-2 Mini Turbo (shape-only).
+         * Any failure switches to the next with an announcement; a
+         * ZeroGPU quota refusal is announced as a busy GPU budget. */
+        const chain = ["sf3d", "trellis2", "instantmesh", "trellis", "hunyuan-mini"];
+        let lastErr = null;
+        for (let i = 0; i < chain.length; i++) {
+          try {
+            out = await runOne(chain[i]);
+            usedName = M3_PROVIDERS[chain[i]].name;
+            usedId = chain[i];
+            lastErr = null;
+            break;
+          } catch (e) {
+            lastErr = e;
+            if (i + 1 < chain.length) {
+              const curName = M3_PROVIDERS[chain[i]].name, nextName = M3_PROVIDERS[chain[i + 1]].name;
+              if (isQuotaErr(e)) {
+                say(curName + " — the free GPU budget is busy right now (" + shortErr(e) + ") — switching to " + nextName + "…");
+              } else {
+                say(curName + " couldn't do it (" + shortErr(e) + ") — switching to " + nextName + ", same as the 2D hub does…");
+              }
+              /* hold the announcement for a beat — otherwise the next
+               * provider's first status overwrites it before it paints */
+              await new Promise((r) => setTimeout(r, 900));
+            }
+          }
+        }
+        if (!out) throw lastErr || new Error("no provider ran");
+      } else {
+        out = await runOne(mode);
+        usedName = M3_PROVIDERS[mode].name;
+        usedId = mode;
+      }
+      const secs = Math.max(1, Math.round((Date.now() - t0) / 1000));
+      const glbUrl = URL.createObjectURL(out.glb);
+      objUrls.push(glbUrl);
+      glbLink.href = glbUrl;
+      glbSize.textContent = "· " + fmtSize(out.glb.size);
+      if (out.obj) {
+        const objUrl = URL.createObjectURL(out.obj);
+        objUrls.push(objUrl);
+        objLink.href = objUrl;
+        objSize.textContent = "· " + fmtSize(out.obj.size);
+        objLink.hidden = false;
+      } else {
+        objLink.hidden = true;
+      }
+      resultNote.textContent = "Made by " + usedName + " in ~" + secs + "s, free. GLB drops straight into Unity / Unreal / Godot." +
+        (usedId === "hunyuan-mini"
+          ? " Note: Hunyuan3D-2 Mini Turbo is shape-only — this mesh is untextured (plain surface, no colors baked in), ready for your own materials."
+          : "");
+      result.hidden = false;
+      say("Done — your mesh is ready below. ⬇");
+      showGlbPreview(glbUrl);
+    } catch (e) {
+      let em = shortErr(e);
+      if (!/[.!?]$/.test(em)) em += ".";
+      say((mode === "auto" ? "All five free 3D providers failed: " : "That provider failed: ") +
+        em + " No fake mesh, no charge — give the free GPUs a minute and try again.", true);
+    } finally {
+      running = false;
+      go.disabled = !file;
+      go.textContent = "GENERATE MESH";
+    }
+  });
+}
+
 /* ============ step wizard (test build, his design 2026-10-20) ============
  * The 5 ctl-groups become pages inside ONE frame: clickable progress dots
  * on top, Back / Next at the bottom, Generate only on the last step.
@@ -4838,4 +5432,17 @@ function wireFlip() {
     attributes: true, attributeFilter: ["class"]
   });
   render();
+})();
+
+/* ============ test build: Fresh from the Lab — pop in as it scrolls into view ============ */
+(function () {
+  var el = document.getElementById("freshLab");
+  if (!el) return;
+  if (!("IntersectionObserver" in window)) { el.classList.add("in"); return; }
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (en) {
+      if (en.isIntersecting) { el.classList.add("in"); io.disconnect(); }
+    });
+  }, { threshold: 0.12 });
+  io.observe(el);
 })();
