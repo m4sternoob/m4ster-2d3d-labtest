@@ -574,6 +574,35 @@
   </div>
 </section>
 
+<section id="labAssets" class="assets-sec">
+  <div class="assets-head">
+    <div>
+      <h2>My Assets</h2>
+      <p class="assets-sub">Everything you generate in this hub lands here — this browser session only. No account, nothing uploaded, ever.</p>
+    </div>
+    <div class="assets-actions">
+      <input id="assetsSearch" type="search" placeholder="Search my generation" aria-label="Search my assets">
+      <button id="assetsUpload" class="assets-upload" type="button">&#9646; Upload</button>
+    </div>
+  </div>
+  <div class="assets-bar">
+    <div class="assets-filters" role="group" aria-label="Filter assets">
+      <button type="button" class="assets-fbtn active" data-f="all">&#9700; All</button>
+      <button type="button" class="assets-fbtn" data-f="image">&#9646; Images</button>
+      <button type="button" class="assets-fbtn" data-f="model">&#9646; Models</button>
+      <button type="button" class="assets-fbtn" data-f="animation">&#127939; Animation</button>
+    </div>
+    <label class="assets-batch"><input type="checkbox" id="assetsBatch"> Batch Selection</label>
+  </div>
+  <div class="assets-grid" id="assetsGrid"></div>
+  <p class="assets-empty" id="assetsEmpty">Nothing here yet — generate a sprite or a mesh and it shows up here.</p>
+  <div class="assets-foot" id="assetsFoot" hidden>
+    <span id="assetsSelCount">0 selected</span>
+    <button id="assetsDlSel" class="assets-upload" type="button">&#11015; Download selected</button>
+    <button id="assetsClearSel" class="assets-fbtn" type="button">Clear</button>
+  </div>
+</section>
+
 <!-- phone-only sticky generate bar: thumb-reachable, always visible -->
 <div class="mobile-bar">
   <button id="generateMobile" class="generate">GENERATE SPRITE</button>
