@@ -5894,8 +5894,25 @@ function wire3DLab() {
     if (btn) btn.click();
     if (message) say(message);
   }
+  /* mode tabs switch the rail's mode in place — they never teleport the
+   * user. Text mode points at the chain box at the rail's foot and the
+   * one-click chain does the 2D hop by itself when it runs. */
+  const tabImage = document.getElementById("m3TabImage");
   const tabText = document.getElementById("m3TabText");
-  if (tabText) tabText.addEventListener("click", () => m3FlipTo2D("Text-to-3D rides an image first — describe it on the 2D side, generate it, then hit “Use my 2D character” here."));
+  function m3SetMode(text) {
+    if (tabImage) { tabImage.classList.toggle("active", !text); tabImage.setAttribute("aria-selected", String(!text)); }
+    if (tabText) { tabText.classList.toggle("active", text); tabText.setAttribute("aria-selected", String(text)); }
+    if (text) {
+      const box = document.querySelector(".m3-chainbox");
+      if (box) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      const inp = document.getElementById("m3ChainInput");
+      if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 250);
+      const cs = document.getElementById("m3ChainStatus");
+      if (cs && !cs.textContent) cs.textContent = "One click: the hub draws it, then builds the mesh itself.";
+    }
+  }
+  if (tabText) tabText.addEventListener("click", () => m3SetMode(true));
+  if (tabImage) tabImage.addEventListener("click", () => m3SetMode(false));
   const hintGen = document.getElementById("m3HintGen");
   if (hintGen) hintGen.addEventListener("click", () => m3FlipTo2D("Make the image on the 2D side first — then flip back and mesh it."));
 
@@ -6866,18 +6883,27 @@ document.addEventListener("DOMContentLoaded", function () {
   window.M3_ARM_CHAIN = function (promptText) {
     const p = $("prompt");
     if (p) p.value = promptText;
-    window.M3_CHAIN = { armed: true, row0: rows()[0] || null };
+    window.M3_CHAIN = { armed: true, armedAt: Date.now(), row0: rows()[0] || null };
     const f2 = $("flip2d");
     if (f2) f2.click();
     const cs = $("m3ChainStatus");
-    if (cs) cs.textContent = "Chain armed — press Generate in the 2D wizard and the mesh builds itself when the image lands.";
+    if (cs) cs.textContent = "Step 1 of 2 — drawing your image… the mesh builds itself when it lands.";
     const sk = $("skStatus");
-    if (sk) sk.textContent = "Skill loaded into the 2D prompt — press Generate there and the mesh auto-builds after.";
+    if (sk) sk.textContent = "Skill running — image first, mesh right after, all automatic.";
     scrollTo("tool");
+    /* one click means one click: fire the 2D Generate ourselves once the
+     * flip settles (the wizard's canvases need the 2D view laid out) */
+    setTimeout(() => { const g = $("generate"); if (g) g.click(); }, 700);
   };
   setInterval(() => {
     const ch = window.M3_CHAIN;
     if (!ch || !ch.armed) return;
+    if (ch.armedAt && Date.now() - ch.armedAt > 8 * 60 * 1000) {
+      ch.armed = false;
+      const cs = $("m3ChainStatus");
+      if (cs) cs.textContent = "The image didn't land in 8 minutes (free queues crawl at peak) — chain cancelled. Your prompt is still in the 2D box; Generate there or chain again.";
+      return;
+    }
     const top = rows()[0];
     if (!top || top === ch.row0 || !top.frames || !top.frames[0]) return;
     ch.armed = false;
@@ -6886,7 +6912,7 @@ document.addEventListener("DOMContentLoaded", function () {
       flip3();
       if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-chain.png", { type: "image/png" }));
       const cs = $("m3ChainStatus");
-      if (cs) cs.textContent = "Image landed — building your mesh…";
+      if (cs) cs.textContent = "Step 2 of 2 — image landed, building your mesh…";
       setTimeout(() => { const go = $("m3Go"); if (go && !go.disabled) go.click(); }, 600);
     }, "image/png");
   }, 1000);
