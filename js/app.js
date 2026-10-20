@@ -5644,7 +5644,7 @@ function wire3DLab() {
       goldMat: new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.3 }),
       cyanMat: new THREE.MeshStandardMaterial({ color: 0x35c4d8, metalness: 0.55, roughness: 0.35 }),
       gizmoScene, gizmoCam,
-      model: null, homePos: null, homeTarget: null, raf: 0, anim: null, animHome: null, maxDim: 1 };
+      model: null, homePos: null, homeTarget: null, raf: 0, anim: null, animHome: null, maxDim: 1, baseMesh: null };
     const tick = () => {
       m3three.raf = requestAnimationFrame(tick);
       if (!wrap.offsetParent) return; // stage hidden — idle cheap
@@ -5770,6 +5770,7 @@ function wire3DLab() {
       s.model = gltf.scene;
       s.scene.add(s.model);
       s.anim = null; s.animHome = null;
+      if (s.baseMesh) { s.scene.remove(s.baseMesh); s.baseMesh = null; }
       m3ApplyMode();
       m3FrameModel();
       try {
@@ -5785,6 +5786,7 @@ function wire3DLab() {
         }).catch(() => {});
       } catch (e) { /* snapshot is a bonus; the mesh itself already succeeded */ }
       const st = m3MeshStats(s.model, s.THREE);
+      window.M3_LAST_STATS = st;
       const statsEl = document.getElementById("m3Stats");
       document.getElementById("m3StatFaces").textContent = m3FmtN(st.faces);
       document.getElementById("m3StatVerts").textContent = m3FmtN(st.verts);
@@ -5917,6 +5919,142 @@ function wire3DLab() {
     const rot = document.getElementById("m3EnvRotate");
     if (rot) { rot.classList.toggle("on", s.controls.autoRotate); rot.setAttribute("aria-checked", String(s.controls.autoRotate)); }
   });
+  /* ===== P6: print-lab hooks — split, base, edit, scene export ===== */
+  async function m3ExportObject(rootObj, filename) {
+    const { GLTFExporter } = await import("three/addons/exporters/GLTFExporter.js");
+    const exporter = new GLTFExporter();
+    const buf = await exporter.parseAsync(rootObj, { binary: true });
+    const blob = new Blob([buf], { type: "model/gltf-binary" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 6000);
+  }
+  function m3FilteredGroup(keepFn) {
+    const s = m3three, THREE = s.THREE;
+    const grp = new THREE.Group();
+    const box = new THREE.Box3().setFromObject(s.model);
+    const midY = (box.min.y + box.max.y) / 2;
+    let meshIdx = -1;
+    const wp = new THREE.Vector3();
+    s.model.updateMatrixWorld(true);
+    s.model.traverse((o) => {
+      if (!o.isMesh) return;
+      meshIdx++;
+      const src = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry;
+      const pos = src.attributes.position;
+      const nor = src.attributes.normal;
+      const uv = src.attributes.uv;
+      const triCount = pos.count / 3;
+      const P = [], N = [], U = [];
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), cen = new THREE.Vector3();
+      const q = new THREE.Quaternion();
+      o.getWorldQuaternion(q);
+      for (let t = 0; t < triCount; t++) {
+        a.fromBufferAttribute(pos, t * 3).applyMatrix4(o.matrixWorld);
+        b.fromBufferAttribute(pos, t * 3 + 1).applyMatrix4(o.matrixWorld);
+        c.fromBufferAttribute(pos, t * 3 + 2).applyMatrix4(o.matrixWorld);
+        cen.copy(a).add(b).add(c).multiplyScalar(1 / 3);
+        if (!keepFn(cen, midY, meshIdx)) continue;
+        [a, b, c].forEach((v) => P.push(v.x, v.y, v.z));
+        if (nor) {
+          for (let k = 0; k < 3; k++) {
+            wp.fromBufferAttribute(nor, t * 3 + k).applyQuaternion(q);
+            N.push(wp.x, wp.y, wp.z);
+          }
+        }
+        if (uv) {
+          for (let k = 0; k < 3; k++) U.push(uv.getX(t * 3 + k), uv.getY(t * 3 + k));
+        }
+      }
+      if (!P.length) return;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+      if (N.length) g.setAttribute("normal", new THREE.Float32BufferAttribute(N, 3));
+      else g.computeVertexNormals();
+      if (U.length) g.setAttribute("uv", new THREE.Float32BufferAttribute(U, 2));
+      const mat = o.userData._om || o.material;
+      const mesh = new THREE.Mesh(g, Array.isArray(mat) ? mat[0] : mat);
+      grp.add(mesh);
+    });
+    return grp;
+  }
+  window.M3_MESH_COUNT = function () {
+    if (!m3three || !m3three.model) return 0;
+    let n = 0;
+    m3three.model.traverse((o) => { if (o.isMesh) n++; });
+    return n;
+  };
+  window.M3_SPLIT = async function (mode) {
+    if (!m3three || !m3three.model) return false;
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    if (mode === "top" || mode === "bottom") {
+      const grp = m3FilteredGroup((cen, midY) => (mode === "top" ? cen.y >= midY : cen.y < midY));
+      if (!grp.children.length) return false;
+      await m3ExportObject(grp, base + "-" + mode + ".glb");
+      return true;
+    }
+    if (mode === "parts") {
+      const total = window.M3_MESH_COUNT();
+      if (total < 2) return false;
+      for (let i = 0; i < Math.min(total, 8); i++) {
+        const idx = i;
+        const grp = m3FilteredGroup((cen, midY, mi) => mi === idx);
+        if (grp.children.length) await m3ExportObject(grp, base + "-part" + (idx + 1) + ".glb");
+      }
+      return true;
+    }
+    return false;
+  };
+  window.M3_ADD_BASE = function (shape) {
+    if (!m3three || !m3three.model) return false;
+    const s = m3three, THREE = s.THREE;
+    if (s.baseMesh) { s.scene.remove(s.baseMesh); s.baseMesh = null; }
+    const box = new THREE.Box3().setFromObject(s.model);
+    const size = box.getSize(new THREE.Vector3());
+    const h = Math.max(size.y * 0.05, (s.maxDim || 1) * 0.03);
+    const r = Math.max(size.x, size.z) * 0.58;
+    let geo;
+    if (shape === "square") geo = new THREE.BoxGeometry(r * 1.7, h, r * 1.7);
+    else if (shape === "hex") geo = new THREE.CylinderGeometry(r, r * 1.04, h, 6);
+    else geo = new THREE.CylinderGeometry(r, r * 1.04, h, 48);
+    const mat = new THREE.MeshStandardMaterial({ color: 0x2a2a33, roughness: 0.6, metalness: 0.2 });
+    s.baseMesh = new THREE.Mesh(geo, mat);
+    s.baseMesh.position.set((box.min.x + box.max.x) / 2, box.min.y - h * 0.32, (box.min.z + box.max.z) / 2);
+    s.scene.add(s.baseMesh);
+    return true;
+  };
+  window.M3_REMOVE_BASE = function () {
+    if (!m3three || !m3three.baseMesh) return;
+    m3three.scene.remove(m3three.baseMesh);
+    m3three.baseMesh = null;
+  };
+  window.M3_EXPORT_WITH_BASE = async function () {
+    if (!m3three || !m3three.model || !m3three.baseMesh) return false;
+    const s = m3three, THREE = s.THREE;
+    const grp = new THREE.Group();
+    grp.add(s.model.clone(true));
+    grp.add(s.baseMesh.clone());
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    await m3ExportObject(grp, base + "-with-base.glb");
+    return true;
+  };
+  window.M3_EDIT = function (action) {
+    if (!m3three || !m3three.model) return false;
+    const s = m3three;
+    window.M3_STOP_MOTION();
+    if (action === "mirror") s.model.scale.x *= -1;
+    else if (action === "rotate") s.model.rotation.y += Math.PI / 2;
+    else if (action === "reset") {
+      s.model.rotation.set(0, 0, 0);
+      s.model.scale.set(Math.abs(s.model.scale.x) > 0 ? 1 : 1, 1, 1);
+      s.model.scale.x = 1;
+    }
+    s.animHome = { pos: s.model.position.clone(), rot: s.model.rotation.clone(), scl: s.model.scale.clone() };
+    return true;
+  };
+
   /* ===== P5: procedural motion engine (Animate panel) ===== */
   const M3_MOTIONS = {
     sway:    { loop: true,  fn: (t) => ({ rz: Math.sin(t * 1.6) * 0.05, dy: Math.sin(t * 3.2) * 0.012 }) },
@@ -6488,4 +6626,175 @@ document.addEventListener("DOMContentLoaded", function () {
   if (f2) f2.addEventListener("click", () => { sec.hidden = true; if (window.M3_STOP_MOTION) window.M3_STOP_MOTION(); clearActive(); });
   const dock = document.getElementById("m3DockAnimate");
   if (dock) dock.addEventListener("click", () => { sec.hidden = false; });
+});
+
+/* ===== P6: Print & Post-Processing panel wiring ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const sec = document.getElementById("labPrint");
+  if (!sec) return;
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => (n == null ? "—" : Number(n).toLocaleString("en-US"));
+  function hasModel() { return !!(window.M3_HAS_MODEL && window.M3_HAS_MODEL()); }
+  function needModel(el) { if (el) el.textContent = "No mesh loaded yet — generate one in the studio or upload a GLB in My Assets first."; }
+  function refreshCheck() {
+    const st = window.M3_LAST_STATS;
+    if (!st) return;
+    $("ppFaces").textContent = fmt(st.faces);
+    $("ppVerts").textContent = fmt(st.verts);
+    $("ppOpen").textContent = fmt(st.openEdges);
+    $("ppDegen").textContent = fmt(st.degenerate);
+    const v = $("ppVerdict");
+    if (st.openEdges === 0 && st.degenerate === 0) v.textContent = "Watertight and clean — this one drops straight into a slicer.";
+    else if (st.openEdges === 0) v.textContent = "Watertight shell. " + fmt(st.degenerate) + " degenerate triangles — most slicers ignore or auto-fix those.";
+    else v.textContent = fmt(st.openEdges) + " open edges: the shell is not watertight. Bambu Studio / PrusaSlicer will offer a one-click repair — expect a cleanup pass before a clean print.";
+    const pc = $("ppSplitParts");
+    if (pc && window.M3_MESH_COUNT) {
+      const n = window.M3_MESH_COUNT();
+      pc.textContent = "⬇ Each part (" + n + ")";
+      pc.disabled = n < 2;
+    }
+  }
+  setInterval(() => { if (!sec.hidden) refreshCheck(); }, 1200);
+  async function doSplit(mode, el) {
+    if (!hasModel()) { needModel(el); return; }
+    el.textContent = "Building the split GLB…";
+    try {
+      const ok = await window.M3_SPLIT(mode);
+      el.textContent = ok ? "Split GLB downloaded." : "That split came out empty — try the other half.";
+    } catch (e) { el.textContent = "Split failed in the browser: " + (e && e.message ? e.message : e); }
+  }
+  $("ppSplitTop").addEventListener("click", () => doSplit("top", $("ppSplitStatus")));
+  $("ppSplitBottom").addEventListener("click", () => doSplit("bottom", $("ppSplitStatus")));
+  $("ppSplitParts").addEventListener("click", () => doSplit("parts", $("ppSplitStatus")));
+  // multi-color quantize
+  let lastHex = [];
+  function sourceImage(cb) {
+    const thumb = document.getElementById("m3Thumb");
+    if (thumb && thumb.src && !thumb.hidden) { const im = new Image(); im.onload = () => cb(im); im.src = thumb.src; return; }
+    if (window.state && state.rows && state.rows.length && state.rows[0].frames && state.rows[0].frames[0]) { cb(state.rows[0].frames[0]); return; }
+    cb(null);
+  }
+  $("ppQuantBtn").addEventListener("click", () => {
+    const stEl = $("ppQuantStatus");
+    sourceImage((img) => {
+      if (!img) { stEl.textContent = "No source image yet — drop an image in the 3D studio or generate a 2D sprite first."; return; }
+      const W = 200, H = Math.max(1, Math.round(W * (img.height / img.width)));
+      const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+      const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, W, H);
+      const data = cx.getImageData(0, 0, W, H).data;
+      const pts = [];
+      for (let i = 0; i < data.length; i += 16) { if (data[i + 3] > 120) pts.push([data[i], data[i + 1], data[i + 2]]); }
+      if (pts.length < 20) { stEl.textContent = "That image is mostly transparent — nothing to quantize."; return; }
+      const K = 5;
+      let cents = [];
+      for (let k = 0; k < K; k++) cents.push(pts[Math.floor((k + 0.5) * pts.length / K)].slice());
+      const assign = new Array(pts.length).fill(0);
+      for (let iter = 0; iter < 10; iter++) {
+        for (let i = 0; i < pts.length; i++) {
+          let best = 0, bd = 1e18;
+          for (let k = 0; k < K; k++) {
+            const dr = pts[i][0] - cents[k][0], dg = pts[i][1] - cents[k][1], db = pts[i][2] - cents[k][2];
+            const d = dr * dr + dg * dg + db * db;
+            if (d < bd) { bd = d; best = k; }
+          }
+          assign[i] = best;
+        }
+        const sums = cents.map(() => [0, 0, 0, 0]);
+        pts.forEach((p, i) => { const a = assign[i]; sums[a][0] += p[0]; sums[a][1] += p[1]; sums[a][2] += p[2]; sums[a][3]++; });
+        cents = cents.map((c, k) => (sums[k][3] ? [sums[k][0] / sums[k][3], sums[k][1] / sums[k][3], sums[k][2] / sums[k][3]] : c));
+      }
+      const counts = cents.map(() => 0);
+      assign.forEach((a) => counts[a]++);
+      const order = cents.map((c, k) => k).sort((a, b) => counts[b] - counts[a]);
+      const hex = (c) => "#" + c.map((v) => Math.round(v).toString(16).padStart(2, "0")).join("");
+      lastHex = order.map((k) => hex(cents[k]));
+      const pal = $("ppPalette");
+      pal.innerHTML = "";
+      order.forEach((k) => {
+        const d = document.createElement("div");
+        d.className = "pp-swatch";
+        const sw = document.createElement("i"); sw.style.background = hex(cents[k]);
+        const tx = document.createElement("span");
+        tx.textContent = hex(cents[k]) + " · " + Math.round(counts[k] / pts.length * 100) + "%";
+        d.appendChild(sw); d.appendChild(tx); pal.appendChild(d);
+      });
+      const out = $("ppQuantCanvas");
+      const ow = 330, oh = Math.max(1, Math.round(ow * (img.height / img.width)));
+      out.width = ow; out.height = oh;
+      const ox = out.getContext("2d");
+      ox.drawImage(img, 0, 0, ow, oh);
+      const od = ox.getImageData(0, 0, ow, oh);
+      for (let i = 0; i < od.data.length; i += 4) {
+        if (od.data[i + 3] < 120) continue;
+        let best = 0, bd = 1e18;
+        for (let k = 0; k < K; k++) {
+          const dr = od.data[i] - cents[k][0], dg = od.data[i + 1] - cents[k][1], db = od.data[i + 2] - cents[k][2];
+          const d = dr * dr + dg * dg + db * db;
+          if (d < bd) { bd = d; best = k; }
+        }
+        od.data[i] = cents[best][0]; od.data[i + 1] = cents[best][1]; od.data[i + 2] = cents[best][2];
+      }
+      ox.putImageData(od, 0, 0);
+      out.hidden = false;
+      $("ppQuantDl").hidden = false;
+      $("ppHexCopy").hidden = false;
+      stEl.textContent = "Palette built — 5 filaments cover the whole image. Biggest color first.";
+    });
+  });
+  $("ppQuantDl").addEventListener("click", () => {
+    const out = $("ppQuantCanvas");
+    const a = document.createElement("a");
+    a.href = out.toDataURL("image/png");
+    a.download = "framelab-palette.png";
+    a.click();
+  });
+  $("ppHexCopy").addEventListener("click", () => {
+    if (navigator.clipboard) navigator.clipboard.writeText(lastHex.join(", "));
+    $("ppQuantStatus").textContent = "Hex codes copied: " + lastHex.join(", ");
+  });
+  // base
+  sec.querySelectorAll("[data-base]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const stEl = $("ppBaseStatus");
+      if (!hasModel()) { needModel(stEl); return; }
+      if (window.M3_ADD_BASE(b.getAttribute("data-base"))) {
+        stEl.textContent = "Base added under the model — check the viewer. Export it with the button below.";
+        const st = document.getElementById("m3Stage");
+        if (st) st.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  });
+  $("ppBaseRemove").addEventListener("click", () => { window.M3_REMOVE_BASE(); $("ppBaseStatus").textContent = "Base removed."; });
+  $("ppBaseExport").addEventListener("click", async () => {
+    const stEl = $("ppBaseStatus");
+    if (!hasModel()) { needModel(stEl); return; }
+    stEl.textContent = "Baking the base into a GLB…";
+    try {
+      const ok = await window.M3_EXPORT_WITH_BASE();
+      stEl.textContent = ok ? "GLB with base downloaded." : "Add a base first, then export.";
+    } catch (e) { stEl.textContent = "Export failed: " + (e && e.message ? e.message : e); }
+  });
+  // edit
+  function doEdit(action, msg) {
+    const stEl = $("ppEditStatus");
+    if (!hasModel()) { needModel(stEl); return; }
+    if (window.M3_EDIT(action)) stEl.textContent = msg;
+  }
+  $("ppMirror").addEventListener("click", () => doEdit("mirror", "Mirrored on X."));
+  $("ppRotY").addEventListener("click", () => doEdit("rotate", "Rotated 90°."));
+  $("ppEditReset").addEventListener("click", () => doEdit("reset", "Transform reset."));
+  // send to printer
+  $("ppSendDl").addEventListener("click", () => {
+    const link = document.getElementById("m3Glb");
+    const stEl = $("ppSendStatus");
+    if (link && link.href && !link.href.endsWith("#")) { link.click(); stEl.textContent = "GLB downloaded — drop it into your slicer."; }
+    else stEl.textContent = "No mesh yet — generate one in the studio first, then this button grabs it.";
+  });
+  // visibility follows the flip, like Animate
+  const f3 = document.getElementById("flip3d");
+  const f2 = document.getElementById("flip2d");
+  if (f3) f3.addEventListener("click", () => { sec.hidden = false; refreshCheck(); });
+  if (f2) f2.addEventListener("click", () => { sec.hidden = true; });
+  const dock = document.getElementById("m3DockPrint");
+  if (dock) dock.addEventListener("click", () => { sec.hidden = false; refreshCheck(); });
 });
