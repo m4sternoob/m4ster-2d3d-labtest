@@ -1300,7 +1300,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 }
 
 /* v6.16b — options form grid: label over field, pairs side by side */
-.pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-top: 12px; }
+.pgrid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 12px 10px; margin-top: 12px; }
 .pfield > label {
   display: block; font-size: 11px; font-weight: 700;
   letter-spacing: .09em; text-transform: uppercase;
@@ -1321,6 +1321,9 @@ body.mode-slicer .mobile-bar { display: none !important; }
 /* v6.16c — narrow-field fixes: palette select + facing seg were squeezed */
 .pfield select, .pfield input[type="number"] { font-size: 13.5px; padding: 8px 6px 8px 10px; }
 .pfield .seg-btn { white-space: nowrap; font-size: 12.5px; }
+/* facing seg text ("→ right") clipped at desktop column widths — the
+   #params button padding (14px) outranks .pfield .seg-btn, so say it here */
+#params .pfield .seg-btn { padding: 8px 6px; font-size: 12px; }
 .pal-row .mini-btn { flex-basis: 38px; width: 38px; }
 
 /* v6.16d — steps, unmistakably: eyebrow label + a rail line joining them */
@@ -1330,8 +1333,11 @@ body.mode-slicer .mobile-bar { display: none !important; }
   letter-spacing: .18em; text-transform: uppercase; color: var(--violet);
 }
 .ctl-group { position: relative; }
+/* connector lives ONLY in the 14px gap between step cards, aligned with the
+   number badges — never inside a card, where it crossed the left-column
+   controls (his 2026-10-20 PC screenshot: line through every step card). */
 .ctl-group:not(:last-of-type)::before {
-  content: ""; position: absolute; left: 25px; top: 46px; bottom: -15px;
+  content: ""; position: absolute; left: 25px; bottom: -15px; height: 14px;
   width: 2px; border-radius: 2px;
   background: linear-gradient(to bottom, var(--violet), transparent);
   opacity: .45;
@@ -1390,6 +1396,7 @@ body.mode-slicer .mobile-bar { display: none !important; }
 .m3-chip { font: 700 10px var(--mono); letter-spacing: .12em; color: #ffb020; border: 1px solid #ffb020; border-radius: 999px; padding: 3px 9px; }
 .lab3d-note { color: var(--dim); line-height: 1.55; }
 @media (max-width: 900px) {
+  .ctl-group:not(:last-of-type)::before { left: 23px; }
   .dim-flip { order: 3; }
   .act-grid, .style-grid { grid-template-columns: repeat(4, 1fr); }
   .persp-grid { grid-template-columns: repeat(2, 1fr); }
