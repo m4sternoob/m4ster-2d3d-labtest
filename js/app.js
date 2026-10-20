@@ -886,6 +886,16 @@ function wireAssets() {
   const clearSel = document.getElementById("assetsClearSel");
   if (clearSel) clearSel.addEventListener("click", () => { assetsState.selected.clear(); renderAssets(); });
   const up = document.getElementById("assetsUpload");
+  const up3d = document.getElementById("assetsUpload3d");
+  const glbFile = document.getElementById("assetsGlbFile");
+  if (up3d && glbFile) {
+    up3d.addEventListener("click", () => glbFile.click());
+    glbFile.addEventListener("change", () => {
+      const f = glbFile.files && glbFile.files[0];
+      if (f && window.M3_LOAD_GLB) window.M3_LOAD_GLB(URL.createObjectURL(f), f.name);
+      glbFile.value = "";
+    });
+  }
   if (up) up.addEventListener("click", () => {
     const f3 = document.getElementById("flip3d");
     if (f3) f3.click();
@@ -5590,6 +5600,8 @@ function wire3DLab() {
   };
   let m3three = null;        // { THREE, scene, camera, renderer, controls, model, clayMat, wireMat, homePos, homeTarget, raf }
   let m3Mode = "lit";
+  let m3ChanMode = null;
+  let m3SkipAssetReg = false;
   let m3SrcName = "";
 
   function m3FmtN(n) { return n.toLocaleString("en-US"); }
@@ -5620,9 +5632,18 @@ function wire3DLab() {
     controls.enableDamping = true;
     controls.autoRotate = true;
     controls.autoRotateSpeed = 1.6;
+    const gizmoScene = new THREE.Scene();
+    gizmoScene.add(new THREE.AxesHelper(1));
+    const gizmoCam = new THREE.PerspectiveCamera(38, 1, 0.1, 20);
     m3three = { THREE, GLTFLoader, scene, camera, renderer, controls, key,
       clayMat: new THREE.MeshStandardMaterial({ color: 0xb9b9be, roughness: 0.85, metalness: 0.0 }),
       wireMat: new THREE.MeshBasicMaterial({ color: 0xa6f750, wireframe: true }),
+      normalMat: new THREE.MeshNormalMaterial(),
+      metalMat: new THREE.MeshStandardMaterial({ color: 0xdfe3e8, metalness: 1.0, roughness: 0.32 }),
+      greyMat: new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 0.15, roughness: 0.55 }),
+      goldMat: new THREE.MeshStandardMaterial({ color: 0xd9a441, metalness: 1.0, roughness: 0.3 }),
+      cyanMat: new THREE.MeshStandardMaterial({ color: 0x35c4d8, metalness: 0.55, roughness: 0.35 }),
+      gizmoScene, gizmoCam,
       model: null, homePos: null, homeTarget: null, raf: 0 };
     const tick = () => {
       m3three.raf = requestAnimationFrame(tick);
@@ -5635,6 +5656,22 @@ function wire3DLab() {
       }
       controls.update();
       renderer.render(scene, camera);
+      if (m3three.model && w > 280 && h > 220) {
+        const gs = 84;
+        const dir = camera.position.clone().sub(controls.target).normalize();
+        gizmoCam.position.copy(dir.multiplyScalar(3.1));
+        gizmoCam.up.copy(camera.up);
+        gizmoCam.lookAt(0, 0, 0);
+        renderer.autoClear = false;
+        renderer.clearDepth();
+        renderer.setScissorTest(true);
+        renderer.setScissor(w - gs - 10, h - gs - 10, gs, gs);
+        renderer.setViewport(w - gs - 10, h - gs - 10, gs, gs);
+        renderer.render(gizmoScene, gizmoCam);
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, w, h);
+        renderer.autoClear = true;
+      }
     };
     tick();
     return m3three;
@@ -5643,10 +5680,21 @@ function wire3DLab() {
   function m3ApplyMode() {
     if (!m3three) return;
     const s = m3three;
-    s.scene.overrideMaterial = m3Mode === "clay" ? s.clayMat : m3Mode === "wire" ? s.wireMat : null;
-    ["Lit", "Clay", "Wire"].forEach((m) => {
+    if (m3ChanMode) {
+      s.scene.overrideMaterial = null;
+      m3ApplyChanMode();
+    } else {
+      m3RestoreMats();
+      const map = { clay: s.clayMat, wire: s.wireMat, normal: s.normalMat, metal: s.metalMat, grey: s.greyMat, gold: s.goldMat, cyan: s.cyanMat };
+      s.scene.overrideMaterial = map[m3Mode] || null;
+    }
+    ["Lit", "Clay", "Wire", "Normal"].forEach((m) => {
       const b = document.getElementById("m3Mode" + m);
-      if (b) b.classList.toggle("active", m3Mode === m.toLowerCase());
+      if (b) b.classList.toggle("active", !m3ChanMode && m3Mode === m.toLowerCase());
+    });
+    document.querySelectorAll("#m3RenderDock .m3-sphere").forEach((b) => {
+      const rm = b.getAttribute("data-rmode");
+      b.classList.toggle("active", m3ChanMode ? rm === m3ChanMode : rm === m3Mode);
     });
   }
 
@@ -5670,7 +5718,7 @@ function wire3DLab() {
   }
 
   function m3MeshStats(root, THREE) {
-    let verts = 0, faces = 0, degenerate = 0;
+    let verts = 0, faces = 0, degenerate = 0, openEdges = 0;
     const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
     root.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
@@ -5692,8 +5740,21 @@ function wire3DLab() {
         if (ab.cross(ac).lengthSq() < 1e-14) degenerate++;
       }
       if (triCount > cap) degenerate = Math.round(degenerate * (triCount / cap));
+      const edgeCount = new Map();
+      const ek = (p, q) => (p < q ? p + "_" + q : q + "_" + p);
+      const triN = Math.min(triCount, 400000);
+      for (let t = 0; t < triN; t++) {
+        const i0 = idx ? idx.getX(t * 3) : t * 3;
+        const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+        const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+        [ek(i0, i1), ek(i1, i2), ek(i2, i0)].forEach((k) => edgeCount.set(k, (edgeCount.get(k) || 0) + 1));
+      }
+      let oe = 0;
+      edgeCount.forEach((n) => { if (n === 1) oe++; });
+      if (triCount > triN) oe = Math.round(oe * (triCount / triN));
+      openEdges += oe;
     });
-    return { verts, faces: Math.round(faces), degenerate };
+    return { verts, faces: Math.round(faces), degenerate, openEdges };
   }
 
   async function showGlbPreview(url) {
@@ -5712,9 +5773,12 @@ function wire3DLab() {
         s.renderer.render(s.scene, s.camera);
         const snap = s.renderer.domElement.toDataURL("image/png");
         fetch(url).then((r) => r.blob()).then((b) => {
-          window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
-          window.M3_ASSET_LIST.push({ name: (m3SrcName || "mesh").replace(/\.[a-z0-9]+$/i, "") + " — mesh", url: URL.createObjectURL(b), objUrl: null, thumb: snap });
-          if (window.renderAssets) renderAssets();
+          if (!m3SkipAssetReg) {
+            window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
+            window.M3_ASSET_LIST.push({ name: (m3SrcName || "mesh").replace(/\.[a-z0-9]+$/i, "") + " — mesh", url: URL.createObjectURL(b), objUrl: null, thumb: snap });
+            if (window.renderAssets) renderAssets();
+          }
+          m3SkipAssetReg = false;
         }).catch(() => {});
       } catch (e) { /* snapshot is a bonus; the mesh itself already succeeded */ }
       const st = m3MeshStats(s.model, s.THREE);
@@ -5727,6 +5791,13 @@ function wire3DLab() {
       if (st.degenerate > 0) { pv.innerHTML = '<span class="m3-print-badge">' + m3FmtN(st.degenerate) + '</span> degenerate tris'; }
       else { pv.textContent = "✓ clean mesh"; }
       if (printEl) printEl.hidden = false;
+      const po = document.getElementById("m3PrintOpen");
+      if (po) po.textContent = st.openEdges > 0 ? m3FmtN(st.openEdges) + " — shell not watertight" : "0 — watertight \u2713";
+      const pdg = document.getElementById("m3PrintDegen");
+      if (pdg) pdg.textContent = m3FmtN(st.degenerate);
+      m3WireBridge(url);
+      const expNameEl = document.getElementById("m3ExpName");
+      if (expNameEl) expNameEl.value = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
       if (viewer) viewer.hidden = true;
     } catch (e) {
       /* fallback: model-viewer */
@@ -5843,9 +5914,159 @@ function wire3DLab() {
     const rot = document.getElementById("m3EnvRotate");
     if (rot) { rot.classList.toggle("on", s.controls.autoRotate); rot.setAttribute("aria-checked", String(s.controls.autoRotate)); }
   });
-  [["m3ModeLit", "lit"], ["m3ModeClay", "clay"], ["m3ModeWire", "wire"]].forEach(([id, mode]) => {
+  /* ===== P4b: Tripo viewer batch — render dock, export popup, engine
+     bridge, snapshot, texture toggle, uploaded-model viewing ===== */
+  function m3SetRenderMode(mode) {
+    if (mode === "metalmap" || mode === "roughmap") { m3ChanMode = mode; }
+    else { m3ChanMode = null; m3Mode = mode; }
+    m3ApplyMode();
+  }
+  function m3RestoreMats() {
+    if (!m3three || !m3three.model) return;
+    m3three.model.traverse((o) => {
+      if (o.isMesh && o.userData._om) o.material = o.userData._om;
+    });
+  }
+  function m3ApplyChanMode() {
+    const s = m3three;
+    if (!s || !s.model) return;
+    let found = false;
+    s.model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData._om) o.userData._om = o.material;
+      const src = o.userData._om;
+      const tex = src && !Array.isArray(src) ? (m3ChanMode === "metalmap" ? src.metalnessMap : src.roughnessMap) : null;
+      if (tex) found = true;
+      o.material = new s.THREE.MeshBasicMaterial({ map: tex || null, color: tex ? 0xffffff : 0x23232a });
+    });
+    if (!found) {
+      const note = document.getElementById("m3ResultNote");
+      if (note) note.textContent = "This GLB carries no " + (m3ChanMode === "metalmap" ? "metallic" : "roughness") + " map, so that channel view is empty — the Normal view works on any mesh.";
+    }
+  }
+  function m3ToggleTextures() {
+    if (!m3three || !m3three.model) return;
+    m3TexOff = !m3TexOff;
+    m3three.model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.userData._om) o.userData._om = o.material;
+      const mats = Array.isArray(o.userData._om) ? o.userData._om : [o.userData._om];
+      mats.forEach((mm) => {
+        if (!mm || !("map" in mm)) return;
+        if (m3TexOff) { if (mm.userData._map === undefined) mm.userData._map = mm.map; mm.map = null; }
+        else if (mm.userData._map !== undefined) { mm.map = mm.userData._map; }
+        mm.needsUpdate = true;
+      });
+    });
+    const b = document.getElementById("m3RdTex");
+    if (b) b.classList.toggle("active", m3TexOff);
+  }
+  let m3TexOff = false;
+  const M3_ENGINES = [
+    ["Unity", "Drag the .glb into your Assets folder — Unity 2022.2+ imports glTF directly."],
+    ["Unreal Engine", "Import into the Content Browser with the glTF importer — PBR materials come across."],
+    ["Godot 4", "Drop the .glb into the project folder — it imports as a ready scene."],
+    ["Blender", "File > Import > glTF 2.0 — geometry, materials and textures intact."],
+    ["3ds Max", "File > Import and pick the .glb (2023+ reads glTF natively)."],
+    ["Maya", "Use the glTF plugin, or hop through Blender for a clean FBX."]
+  ];
+  function m3WireBridge(url) {
+    const list = document.getElementById("m3BridgeList");
+    if (!list) return;
+    const base = (m3SrcName || "framelab-mesh").replace(/\.[a-z0-9]+$/i, "");
+    list.innerHTML = "";
+    M3_ENGINES.forEach(([name, tip]) => {
+      const row = document.createElement("div");
+      row.className = "m3-bridge-row";
+      const nm = document.createElement("strong"); nm.textContent = name;
+      const tp = document.createElement("span"); tp.textContent = tip;
+      const a = document.createElement("a");
+      a.className = "m3-bridge-dl";
+      a.href = url;
+      a.setAttribute("download", base + "-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "") + ".glb");
+      a.textContent = "\u2b07 GLB";
+      row.appendChild(nm); row.appendChild(tp); row.appendChild(a);
+      list.appendChild(row);
+    });
+  }
+  window.M3_LOAD_GLB = function (url, name) {
+    const flip = document.getElementById("flip3d");
+    if (flip) flip.click();
+    m3SrcName = name || "uploaded-model.glb";
+    m3SkipAssetReg = true;
+    const res = document.getElementById("m3Result");
+    if (res) res.hidden = false;
+    if (glbLink) { glbLink.href = url; glbLink.setAttribute("download", m3SrcName); }
+    if (objLink) objLink.hidden = true;
+    showGlbPreview(url);
+    const note = document.getElementById("m3ResultNote");
+    if (note) note.textContent = "Viewing your uploaded model — orbit it, read its real stats, swap materials, export it back any time.";
+    const stage = document.getElementById("m3Stage");
+    if (stage) stage.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+  const rdEnv = document.getElementById("m3RdEnv");
+  if (rdEnv) rdEnv.addEventListener("click", () => { const b = document.getElementById("m3EnvBtn"); if (b) b.click(); });
+  const rdSnap = document.getElementById("m3RdSnap");
+  if (rdSnap) rdSnap.addEventListener("click", () => {
+    if (!m3three) return;
+    m3three.renderer.render(m3three.scene, m3three.camera);
+    m3three.renderer.domElement.toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "framelab-view.png";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    }, "image/png");
+  });
+  const rdTex = document.getElementById("m3RdTex");
+  if (rdTex) rdTex.addEventListener("click", m3ToggleTextures);
+  const rdHelp = document.getElementById("m3RdHelp");
+  const helpPop = document.getElementById("m3HelpPop");
+  if (rdHelp && helpPop) rdHelp.addEventListener("click", () => { helpPop.hidden = !helpPop.hidden; });
+  document.querySelectorAll("#m3RenderDock .m3-sphere").forEach((b) => {
+    b.addEventListener("click", () => m3SetRenderMode(b.getAttribute("data-rmode")));
+  });
+  const expPop = document.getElementById("m3ExpPop");
+  const expBtn = document.getElementById("m3ExportBtn");
+  if (expBtn && expPop) expBtn.addEventListener("click", () => {
+    const tex = document.getElementById("m3ExpTex");
+    if (tex) tex.textContent = window.M3_TEXSIZE === 4096 ? "Ultra 4K" : window.M3_TEXSIZE === 2048 ? "Ultra 2K" : "Standard 1024";
+    const fmt = document.getElementById("m3ExpFmt");
+    if (fmt) {
+      const objOpt = fmt.querySelector('option[value="obj"]');
+      if (objOpt) { objOpt.disabled = !objLink || objLink.hidden; if (objOpt.disabled && fmt.value === "obj") fmt.value = "glb"; }
+    }
+    expPop.hidden = !expPop.hidden;
+    const bp = document.getElementById("m3BridgePop");
+    if (bp && !expPop.hidden) bp.hidden = true;
+  });
+  const expGo = document.getElementById("m3ExpGo");
+  if (expGo) expGo.addEventListener("click", () => {
+    const nameEl = document.getElementById("m3ExpName");
+    const fmtEl = document.getElementById("m3ExpFmt");
+    const base = (((nameEl && nameEl.value.trim()) || "framelab-mesh").replace(/[^\w\- ]+/g, "").trim()) || "framelab-mesh";
+    const useObj = !!(fmtEl && fmtEl.value === "obj" && objLink && !objLink.hidden);
+    const link = useObj ? objLink : glbLink;
+    if (link) { link.setAttribute("download", base + (useObj ? ".obj" : ".glb")); link.click(); }
+    if (expPop) expPop.hidden = true;
+  });
+  const bridgeBtn = document.getElementById("m3BridgeBtn");
+  const bridgePop = document.getElementById("m3BridgePop");
+  if (bridgeBtn && bridgePop) bridgeBtn.addEventListener("click", () => {
+    bridgePop.hidden = !bridgePop.hidden;
+    if (!bridgePop.hidden && expPop) expPop.hidden = true;
+  });
+  const genLink = document.getElementById("m3DropGenLink");
+  if (genLink) genLink.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const f = document.getElementById("flip2d");
+    if (f) f.click();
+  });
+
+  [["m3ModeLit", "lit"], ["m3ModeClay", "clay"], ["m3ModeWire", "wire"], ["m3ModeNormal", "normal"]].forEach(([id, mode]) => {
     const b = document.getElementById(id);
-    if (b) b.addEventListener("click", () => { m3Mode = mode; m3ApplyMode(); });
+    if (b) b.addEventListener("click", () => { m3ChanMode = null; m3Mode = mode; m3ApplyMode(); });
   });
   const envBtn = document.getElementById("m3EnvBtn");
   const envPop = document.getElementById("m3EnvPop");
