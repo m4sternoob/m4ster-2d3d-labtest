@@ -650,6 +650,75 @@
   <p class="la-note" id="laStatus" role="status" aria-live="polite"></p>
 </section>
 
+<section id="labPrint" class="lab-animate lab-print" hidden>
+  <div class="la-head">
+    <h2>Print &amp; Post-Processing</h2>
+    <p class="dim">Judged by the same yardstick the slicer world uses — real numbers from your actual mesh, never estimates.</p>
+  </div>
+  <div class="la-cards">
+    <div class="la-card pp-card">
+      <strong>&#128424; Print Check</strong>
+      <div class="pp-stats">
+        <div><span>Faces</span><strong id="ppFaces">—</strong></div>
+        <div><span>Vertices</span><strong id="ppVerts">—</strong></div>
+        <div><span>Open edges</span><strong id="ppOpen">—</strong></div>
+        <div><span>Degenerate tris</span><strong id="ppDegen">—</strong></div>
+      </div>
+      <p id="ppVerdict">Load or generate a mesh and the check runs automatically.</p>
+    </div>
+    <div class="la-card pp-card">
+      <strong>&#9986; Split to Print</strong>
+      <p>Split the mesh at its middle height for smaller printers. Centroid split — the seam is jagged, a minute of sanding hides it.</p>
+      <div class="pp-btnrow">
+        <button type="button" id="ppSplitTop">&#11015; Top half</button>
+        <button type="button" id="ppSplitBottom">&#11015; Bottom half</button>
+        <button type="button" id="ppSplitParts">&#11015; Each part</button>
+      </div>
+      <p class="la-note" id="ppSplitStatus"></p>
+    </div>
+    <div class="la-card pp-card">
+      <strong>&#127912; Multi-Color Print</strong>
+      <p>Quantize your source image down to a 5-color palette — the color map for a multi-filament print.</p>
+      <button type="button" class="la-vid-btn" id="ppQuantBtn">Build palette from source image</button>
+      <div class="pp-palette" id="ppPalette"></div>
+      <canvas id="ppQuantCanvas" class="pp-quant" width="330" height="330" hidden></canvas>
+      <div class="pp-btnrow">
+        <button type="button" id="ppQuantDl" hidden>&#11015; Palette PNG</button>
+        <button type="button" id="ppHexCopy" hidden>Copy hex codes</button>
+      </div>
+      <p class="la-note" id="ppQuantStatus"></p>
+    </div>
+    <div class="la-card pp-card">
+      <strong>&#129521; Add Base</strong>
+      <p>Preview a display base under the model in the viewer, then export a GLB with the base baked in.</p>
+      <div class="pp-btnrow pp-bases">
+        <button type="button" data-base="circle">&#11044; Circle</button>
+        <button type="button" data-base="square">&#9632; Square</button>
+        <button type="button" data-base="hex">&#11042; Hex</button>
+        <button type="button" id="ppBaseRemove">Remove</button>
+      </div>
+      <div class="pp-btnrow"><button type="button" id="ppBaseExport">&#11015; GLB with base</button></div>
+      <p class="la-note" id="ppBaseStatus"></p>
+    </div>
+    <div class="la-card pp-card">
+      <strong>&#9998; Edit <span class="pp-new">NEW</span></strong>
+      <p>Quick transforms on the live model — they carry into Split and Base exports.</p>
+      <div class="pp-btnrow">
+        <button type="button" id="ppMirror">&#8646; Mirror X</button>
+        <button type="button" id="ppRotY">&#10227; Rotate 90&deg;</button>
+        <button type="button" id="ppEditReset">Reset</button>
+      </div>
+      <p class="la-note" id="ppEditStatus"></p>
+    </div>
+    <div class="la-card pp-card">
+      <strong>&#128640; Send to Printer</strong>
+      <p>Bambu Studio and PrusaSlicer open .glb directly. Download the mesh and drop it straight in.</p>
+      <div class="pp-btnrow"><button type="button" id="ppSendDl">&#11015; Download GLB for slicer</button></div>
+      <p class="la-note" id="ppSendStatus"></p>
+    </div>
+  </div>
+</section>
+
 <section id="labAssets" class="assets-sec">
   <div class="assets-head">
     <div>
