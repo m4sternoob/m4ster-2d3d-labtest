@@ -740,6 +740,166 @@ function mpClose() {
   if (mpOpenFor) mpOpenFor.btn.setAttribute("aria-expanded", "false");
   mpOpenFor = null;
 }
+/* ===== My Assets — Meshy copy (TEST build) =====
+ * Meshy's Assets page: search, All / Images / Models / Animation
+ * filters, batch selection, thumbnail grid. Ours is filled with the
+ * visitor's OWN work from this session — 2D rows from state.rows and
+ * 3D meshes registered by the studio — because the hub has no
+ * accounts by design. Nothing is uploaded anywhere. */
+window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
+const assetsState = { filter: "all", query: "", batch: false, selected: new Set() };
+function assetsItems() {
+  const items = [];
+  if (typeof state !== "undefined" && state.rows) {
+    state.rows.forEach((r, i) => {
+      if (!r.frames || !r.frames[0]) return;
+      items.push({
+        id: "2d-" + i,
+        kind: r.frames.length > 1 ? "animation" : "image",
+        name: r.name || "Sprite",
+        thumb: null, canvas: r.frames[0],
+        frames: r.frames.length
+      });
+    });
+  }
+  window.M3_ASSET_LIST.forEach((m, i) => {
+    items.push({ id: "3d-" + i, kind: "model", name: m.name, thumb: m.thumb, url: m.url, objUrl: m.objUrl || null });
+  });
+  return items.reverse();
+}
+function assetsDownload(item) {
+  const a = document.createElement("a");
+  if (item.kind === "model") {
+    a.href = item.url;
+    a.download = "framelab-mesh.glb";
+  } else {
+    a.href = item.canvas.toDataURL("image/png");
+    a.download = (item.name || "sprite").replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-").toLowerCase() + ".png";
+  }
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+function renderAssets() {
+  const grid = document.getElementById("assetsGrid");
+  const empty = document.getElementById("assetsEmpty");
+  if (!grid) return;
+  const q = assetsState.query.toLowerCase();
+  const items = assetsItems().filter((it) =>
+    (assetsState.filter === "all" || it.kind === assetsState.filter) &&
+    (!q || it.name.toLowerCase().indexOf(q) >= 0));
+  grid.innerHTML = "";
+  items.slice(0, 30).forEach((it) => {
+    const card = document.createElement("div");
+    card.className = "asset-card" + (assetsState.selected.has(it.id) ? " picked" : "");
+    const img = document.createElement("img");
+    img.className = "asset-thumb";
+    img.alt = it.name;
+    if (it.kind === "model") {
+      if (it.thumb) img.src = it.thumb;
+      else { img.alt = "3D mesh"; }
+    } else {
+      try { img.src = it.canvas.toDataURL("image/png"); } catch (e) { /* tainted canvas — skip thumb */ }
+    }
+    card.appendChild(img);
+    if (it.kind === "model" && !it.thumb) {
+      const cube = document.createElement("div");
+      cube.className = "asset-cube";
+      cube.textContent = "▣";
+      card.appendChild(cube);
+    }
+    const meta = document.createElement("div");
+    meta.className = "asset-meta";
+    const nm = document.createElement("span");
+    nm.className = "asset-name";
+    nm.textContent = it.name;
+    const tag = document.createElement("span");
+    tag.className = "asset-tag";
+    tag.textContent = it.kind === "model" ? "Model" : it.kind === "animation" ? "Animation · " + it.frames + "f" : "Image";
+    meta.appendChild(nm);
+    meta.appendChild(tag);
+    card.appendChild(meta);
+    const dl = document.createElement("button");
+    dl.type = "button";
+    dl.className = "asset-dl";
+    dl.title = "Download";
+    dl.textContent = "⬇";
+    dl.addEventListener("click", (e) => { e.stopPropagation(); assetsDownload(it); });
+    card.appendChild(dl);
+    if (assetsState.batch) {
+      const cb = document.createElement("span");
+      cb.className = "asset-check";
+      cb.textContent = assetsState.selected.has(it.id) ? "✓" : "";
+      card.appendChild(cb);
+    }
+    card.addEventListener("click", () => {
+      if (assetsState.batch) {
+        if (assetsState.selected.has(it.id)) assetsState.selected.delete(it.id);
+        else assetsState.selected.add(it.id);
+        assetsSyncFoot();
+        renderAssets();
+        return;
+      }
+      const f = document.getElementById(it.kind === "model" ? "flip3d" : "flip2d");
+      if (f) f.click();
+      const target = document.getElementById(it.kind === "model" ? "lab3d" : "tool");
+      if (target) target.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    grid.appendChild(card);
+  });
+  if (empty) {
+    empty.hidden = items.length > 0;
+    if (items.length === 0 && assetsItems().length > 0) empty.textContent = "No assets match that filter.";
+    else if (items.length === 0) empty.textContent = "Nothing here yet — generate a sprite or a mesh and it shows up here.";
+  }
+  assetsSyncFoot();
+}
+function assetsSyncFoot() {
+  const foot = document.getElementById("assetsFoot");
+  const count = document.getElementById("assetsSelCount");
+  if (foot) foot.hidden = !(assetsState.batch && assetsState.selected.size > 0);
+  if (count) count.textContent = assetsState.selected.size + " selected";
+}
+function wireAssets() {
+  const grid = document.getElementById("assetsGrid");
+  if (!grid) return;
+  document.querySelectorAll(".assets-fbtn[data-f]").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".assets-fbtn[data-f]").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    assetsState.filter = b.getAttribute("data-f");
+    renderAssets();
+  }));
+  const search = document.getElementById("assetsSearch");
+  if (search) search.addEventListener("input", () => { assetsState.query = search.value.trim(); renderAssets(); });
+  const batch = document.getElementById("assetsBatch");
+  if (batch) batch.addEventListener("change", () => {
+    assetsState.batch = batch.checked;
+    if (!batch.checked) assetsState.selected.clear();
+    renderAssets();
+  });
+  const dlSel = document.getElementById("assetsDlSel");
+  if (dlSel) dlSel.addEventListener("click", () => {
+    assetsItems().filter((it) => assetsState.selected.has(it.id)).forEach((it, i) => {
+      setTimeout(() => assetsDownload(it), i * 350);
+    });
+  });
+  const clearSel = document.getElementById("assetsClearSel");
+  if (clearSel) clearSel.addEventListener("click", () => { assetsState.selected.clear(); renderAssets(); });
+  const up = document.getElementById("assetsUpload");
+  if (up) up.addEventListener("click", () => {
+    const f3 = document.getElementById("flip3d");
+    if (f3) f3.click();
+    const fi = document.getElementById("m3File");
+    if (fi) fi.click();
+  });
+  ["flip2d", "flip3d"].forEach((id) => {
+    const f = document.getElementById(id);
+    if (f) f.addEventListener("click", () => setTimeout(renderAssets, 60));
+  });
+  renderAssets();
+}
+window.renderAssets = renderAssets;
+
 function wireModelPicker(btnId, selId) {
   const btn = document.getElementById(btnId);
   const sel = document.getElementById(selId);
@@ -2924,6 +3084,7 @@ function pushRow(name, frames, extra = {}) {
   );
   state.rows.push(row);
   state.originals.push(frames.slice());
+  if (window.renderAssets) renderAssets();
 }
 
 /* status bars (v6.15): the RGB separators change colour with the pipeline —
@@ -3981,6 +4142,7 @@ function init() {
     });
   }
   wireModelPicker("aiModelBtn", "aiModel");
+  wireAssets();
   const aiKeyInput = document.getElementById("aiKey");
   if (aiKeyInput) {
     aiKeyInput.addEventListener("input", () => {
@@ -5342,6 +5504,7 @@ function wire3DLab() {
     if (!f) return;
     if (!/^image\//.test(f.type || "")) { say("That's not an image — pick a PNG or JPG.", true); return; }
     file = f;
+    m3SrcName = f.name || "mesh";
     thumb.src = URL.createObjectURL(f);
     thumb.hidden = false;
     dropText.innerHTML = "";
@@ -5438,7 +5601,7 @@ function wire3DLab() {
     const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
     const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
     const wrap = document.getElementById("m3CanvasWrap");
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.0;
@@ -5545,6 +5708,15 @@ function wire3DLab() {
       s.scene.add(s.model);
       m3ApplyMode();
       m3FrameModel();
+      try {
+        s.renderer.render(s.scene, s.camera);
+        const snap = s.renderer.domElement.toDataURL("image/png");
+        fetch(url).then((r) => r.blob()).then((b) => {
+          window.M3_ASSET_LIST = window.M3_ASSET_LIST || [];
+          window.M3_ASSET_LIST.push({ name: (m3SrcName || "mesh").replace(/\.[a-z0-9]+$/i, "") + " — mesh", url: URL.createObjectURL(b), objUrl: null, thumb: snap });
+          if (window.renderAssets) renderAssets();
+        }).catch(() => {});
+      } catch (e) { /* snapshot is a bonus; the mesh itself already succeeded */ }
       const st = m3MeshStats(s.model, s.THREE);
       const statsEl = document.getElementById("m3Stats");
       document.getElementById("m3StatFaces").textContent = m3FmtN(st.faces);
