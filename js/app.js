@@ -5081,7 +5081,7 @@ async function m3RunTrellis2(file, say) {
   say("TRELLIS.2 — building your textured mesh (usually ~1 minute)…");
   await m3Call(prov, session, 7, [processed, 0, "1024", 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
   say("TRELLIS.2 — packing the GLB…");
-  const made = await m3Call(prov, session, 9, [null, 300000, 2048], deadline);
+  const made = await m3Call(prov, session, 9, [null, 300000, (typeof window !== "undefined" && window.M3_TEXSIZE) || 2048], deadline);
   const rawFd = made && made[0];
   const glbFd = rawFd && typeof rawFd === "object" && "value" in rawFd ? rawFd.value : rawFd;
   const url = m3FileUrl(prov, glbFd);
@@ -5212,7 +5212,8 @@ function wire3DLab() {
     go.disabled = running;
     result.hidden = true;
     hideGlbPreview();
-    say("Ready — hit GENERATE MESH. Free, as always.");
+    m3StudioReset();
+    say("Ready — hit Generate. Free, as always.");
   }
   drop.addEventListener("click", () => fileInput.click());
   drop.addEventListener("keydown", (e) => {
@@ -5265,24 +5266,331 @@ function wire3DLab() {
     }
   });
 
-  /* in-browser GLB preview: Google's <model-viewer>, lazy-loaded ONLY
-   * after a generation succeeds. A preview failure (CDN down, WebGL
-   * missing) must never fail the generation — the download stands. */
+  /* ===== Meshy-style 3D Studio (TEST build) =====
+   * The stage is a real three.js engine scene: Lit / Clay / Wireframe
+   * render modes, real face/vertex stats parsed from the loaded GLB, a
+   * degenerate-triangle printability check, environment controls and
+   * camera presets. If the three.js CDN or WebGL fails, the preview
+   * falls back to <model-viewer> — and a preview failure never fails
+   * the generation itself; the download always stands. */
+  const M3_MODEL_DESCS = {
+    auto: "AUTO rides the whole roster: Stable Fast 3D first, then TRELLIS.2, InstantMesh, TRELLIS, Hunyuan Mini — switching itself if one fails.",
+    sf3d: "Stable Fast 3D — Stability AI. Fast, textured GLB, usually ~10 seconds.",
+    trellis2: "TRELLIS.2 — textured, highest detail of the roster, about a minute.",
+    instantmesh: "InstantMesh — Tencent ARC. Dense multi-view mesh, GLB + OBJ out.",
+    trellis: "TRELLIS (community) — the original Microsoft model, one single call.",
+    "hunyuan-mini": "Hunyuan3D-2 Mini Turbo — fastest shape (~15s). Shape only: the mesh comes out untextured."
+  };
+  let m3three = null;        // { THREE, scene, camera, renderer, controls, model, clayMat, wireMat, homePos, homeTarget, raf }
+  let m3Mode = "lit";
+  let m3SrcName = "";
+
+  function m3FmtN(n) { return n.toLocaleString("en-US"); }
+
+  async function m3InitThree() {
+    if (m3three) return m3three;
+    const THREE = await import("three");
+    const { OrbitControls } = await import("three/addons/controls/OrbitControls.js");
+    const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
+    const { RoomEnvironment } = await import("three/addons/environments/RoomEnvironment.js");
+    const wrap = document.getElementById("m3CanvasWrap");
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.domElement.className = "m3-three-canvas";
+    wrap.appendChild(renderer.domElement);
+    const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    const camera = new THREE.PerspectiveCamera(42, 1, 0.01, 500);
+    camera.position.set(1.6, 1.1, 2.2);
+    const key = new THREE.DirectionalLight(0xffffff, 1.6);
+    key.position.set(2.5, 4, 2);
+    scene.add(key);
+    scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 1.6;
+    m3three = { THREE, GLTFLoader, scene, camera, renderer, controls, key,
+      clayMat: new THREE.MeshStandardMaterial({ color: 0xb9b9be, roughness: 0.85, metalness: 0.0 }),
+      wireMat: new THREE.MeshBasicMaterial({ color: 0xa6f750, wireframe: true }),
+      model: null, homePos: null, homeTarget: null, raf: 0 };
+    const tick = () => {
+      m3three.raf = requestAnimationFrame(tick);
+      if (!wrap.offsetParent) return; // stage hidden — idle cheap
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      if (w && h && (renderer.domElement.width !== Math.round(w * renderer.getPixelRatio()) || camera.aspect !== w / h)) {
+        renderer.setSize(w, h, false);
+        camera.aspect = w / h;
+        camera.updateProjectionMatrix();
+      }
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    tick();
+    return m3three;
+  }
+
+  function m3ApplyMode() {
+    if (!m3three) return;
+    const s = m3three;
+    s.scene.overrideMaterial = m3Mode === "clay" ? s.clayMat : m3Mode === "wire" ? s.wireMat : null;
+    ["Lit", "Clay", "Wire"].forEach((m) => {
+      const b = document.getElementById("m3Mode" + m);
+      if (b) b.classList.toggle("active", m3Mode === m.toLowerCase());
+    });
+  }
+
+  function m3FrameModel() {
+    const s = m3three;
+    if (!s || !s.model) return;
+    const box = new s.THREE.Box3().setFromObject(s.model);
+    const center = box.getCenter(new s.THREE.Vector3());
+    const size = box.getSize(new s.THREE.Vector3());
+    const maxDim = Math.max(size.x, size.y, size.z) || 1;
+    s.model.position.sub(center); // center at origin
+    const dist = maxDim * 2.1;
+    s.homePos = new s.THREE.Vector3(dist * 0.62, dist * 0.42, dist * 0.78);
+    s.homeTarget = new s.THREE.Vector3(0, 0, 0);
+    s.camera.position.copy(s.homePos);
+    s.controls.target.copy(s.homeTarget);
+    s.camera.near = maxDim / 100;
+    s.camera.far = maxDim * 100;
+    s.camera.updateProjectionMatrix();
+    s.controls.update();
+  }
+
+  function m3MeshStats(root, THREE) {
+    let verts = 0, faces = 0, degenerate = 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+    root.traverse((o) => {
+      if (!o.isMesh || !o.geometry) return;
+      const g = o.geometry;
+      const pos = g.attributes && g.attributes.position;
+      if (!pos) return;
+      verts += pos.count;
+      const idx = g.index;
+      const triCount = idx ? idx.count / 3 : pos.count / 3;
+      faces += triCount;
+      const read = (i, out) => {
+        const vi = idx ? idx.getX(i) : i;
+        out.fromBufferAttribute(pos, vi);
+      };
+      const cap = Math.min(triCount, 400000);
+      for (let t = 0; t < cap; t++) {
+        read(t * 3, a); read(t * 3 + 1, b); read(t * 3 + 2, c);
+        ab.subVectors(b, a); ac.subVectors(c, a);
+        if (ab.cross(ac).lengthSq() < 1e-14) degenerate++;
+      }
+      if (triCount > cap) degenerate = Math.round(degenerate * (triCount / cap));
+    });
+    return { verts, faces: Math.round(faces), degenerate };
+  }
+
   async function showGlbPreview(url) {
-    if (!viewer) return;
+    const empty = document.getElementById("m3StageEmpty");
+    if (empty) empty.hidden = true;
     try {
-      await import("https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js");
-      viewer.src = url;
-      viewer.hidden = false;
+      const s = await m3InitThree();
+      const loader = new s.GLTFLoader();
+      const gltf = await loader.loadAsync(url);
+      if (s.model) { s.scene.remove(s.model); }
+      s.model = gltf.scene;
+      s.scene.add(s.model);
+      m3ApplyMode();
+      m3FrameModel();
+      const st = m3MeshStats(s.model, s.THREE);
+      const statsEl = document.getElementById("m3Stats");
+      document.getElementById("m3StatFaces").textContent = m3FmtN(st.faces);
+      document.getElementById("m3StatVerts").textContent = m3FmtN(st.verts);
+      if (statsEl) statsEl.hidden = false;
+      const printEl = document.getElementById("m3Print");
+      const pv = document.getElementById("m3PrintVal");
+      if (st.degenerate > 0) { pv.innerHTML = '<span class="m3-print-badge">' + m3FmtN(st.degenerate) + '</span> degenerate tris'; }
+      else { pv.textContent = "✓ clean mesh"; }
+      if (printEl) printEl.hidden = false;
+      if (viewer) viewer.hidden = true;
     } catch (e) {
-      viewer.hidden = true;
+      /* fallback: model-viewer */
+      try {
+        await import("https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js");
+        if (viewer) { viewer.src = url; viewer.hidden = false; }
+      } catch (e2) { if (viewer) viewer.hidden = true; }
     }
   }
   function hideGlbPreview() {
-    if (!viewer) return;
-    viewer.hidden = true;
-    viewer.removeAttribute("src");
+    if (m3three && m3three.model) { m3three.scene.remove(m3three.model); m3three.model = null; }
+    const statsEl = document.getElementById("m3Stats");
+    if (statsEl) statsEl.hidden = true;
+    const printEl = document.getElementById("m3Print");
+    if (printEl) printEl.hidden = true;
+    if (viewer) { viewer.hidden = true; viewer.removeAttribute("src"); }
   }
+  function m3StudioReset() {
+    const empty = document.getElementById("m3StageEmpty");
+    if (empty) empty.hidden = false;
+  }
+
+  /* --- rail wiring --- */
+  if (provSel) provSel.addEventListener("change", () => {
+    const d = document.getElementById("m3ModelDesc");
+    if (d) d.textContent = M3_MODEL_DESCS[provSel.value] || "";
+    const cl = document.getElementById("m3CostLine");
+    if (cl) cl.textContent = provSel.value === "trellis2" ? "~1 min · Free" : provSel.value === "hunyuan-mini" ? "~15 sec · Free" : provSel.value === "sf3d" ? "~10 sec · Free" : "Free · no signup · no keys";
+  });
+
+  function m3FlipTo2D(message) {
+    const btn = document.querySelector('.flip-btn[data-dim="2d"]') || document.getElementById("flip2d");
+    if (btn) btn.click();
+    if (message) say(message);
+  }
+  const tabText = document.getElementById("m3TabText");
+  if (tabText) tabText.addEventListener("click", () => m3FlipTo2D("Text-to-3D rides an image first — describe it on the 2D side, generate it, then hit “Use my 2D character” here."));
+  const hintGen = document.getElementById("m3HintGen");
+  if (hintGen) hintGen.addEventListener("click", () => m3FlipTo2D("Make the image on the 2D side first — then flip back and mesh it."));
+
+  const topoNote = document.getElementById("m3TopoNote");
+  const topoD = document.getElementById("m3TopoDetail");
+  const topoS = document.getElementById("m3TopoSmart");
+  function m3SetTopo(smart) {
+    window.M3_SMART_TOPO = smart;
+    if (topoD) topoD.classList.toggle("active", !smart);
+    if (topoS) topoS.classList.toggle("active", smart);
+    if (topoNote) topoNote.textContent = smart
+      ? "Smart Topology — cleaner, lighter mesh for games & mobile. AUTO leads with InstantMesh."
+      : "High Detail — full-density mesh from the model.";
+  }
+  if (topoD) topoD.addEventListener("click", () => m3SetTopo(false));
+  if (topoS) topoS.addEventListener("click", () => m3SetTopo(true));
+
+  const mvBtn = document.getElementById("m3MultiView");
+  if (mvBtn) mvBtn.addEventListener("click", () => {
+    const on = mvBtn.getAttribute("aria-checked") !== "true";
+    mvBtn.setAttribute("aria-checked", String(on));
+    mvBtn.classList.toggle("on", on);
+    window.M3_MULTIVIEW = on;
+    say(on ? "Multi-view ON — AUTO will lead with InstantMesh's multi-view pipeline." : "Multi-view OFF.");
+  });
+
+  document.querySelectorAll(".m3-res .m3-seg-btn").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".m3-res .m3-seg-btn").forEach((x) => x.classList.remove("active"));
+    b.classList.add("active");
+    window.M3_TEXSIZE = parseInt(b.getAttribute("data-tex"), 10) || 2048;
+  }));
+  window.M3_TEXSIZE = 1024;
+
+  /* sample slots: the visitor's own recent 2D generations */
+  function m3FillSamples() {
+    const box = document.getElementById("m3Samples");
+    const row = document.getElementById("m3SamplesRow");
+    if (!box || !row || typeof state === "undefined" || !state.rows) return;
+    row.innerHTML = "";
+    let n = 0;
+    state.rows.forEach((r) => {
+      if (n >= 3 || !r.frames || !r.frames[0]) return;
+      const cv = r.frames[0];
+      const img = document.createElement("img");
+      try { img.src = cv.toDataURL("image/png"); } catch (e) { return; }
+      img.alt = "Your 2D generation";
+      img.className = "m3-sample";
+      img.title = "Use this image for 3D";
+      img.addEventListener("click", () => {
+        cv.toBlob((blob) => {
+          if (blob) setFile(new File([blob], "my-2d-generation.png", { type: "image/png" }));
+        }, "image/png");
+      });
+      row.appendChild(img);
+      n++;
+    });
+    box.hidden = n === 0;
+  }
+  const lab3dEl = document.getElementById("lab3d");
+  if (lab3dEl && "MutationObserver" in window) {
+    new MutationObserver(() => { if (!lab3dEl.hidden) m3FillSamples(); }).observe(lab3dEl, { attributes: true, attributeFilter: ["hidden"] });
+  }
+
+  /* --- stage wiring --- */
+  const preset = document.getElementById("m3ViewPreset");
+  if (preset) preset.addEventListener("change", () => {
+    if (!m3three || !m3three.model) return;
+    const s = m3three, v = preset.value;
+    if (v === "turntable") { s.controls.autoRotate = true; m3FrameModel(); }
+    else if (v === "top") {
+      const d = s.homePos ? s.homePos.length() : 3;
+      s.camera.position.set(0, d, 0.001); s.controls.target.set(0, 0, 0); s.controls.update();
+    } else if (v === "front") {
+      const d = s.homePos ? s.homePos.length() : 3;
+      s.camera.position.set(0, d * 0.18, d); s.controls.target.set(0, 0, 0); s.controls.update();
+    } else { s.controls.autoRotate = true; m3FrameModel(); }
+    const rot = document.getElementById("m3EnvRotate");
+    if (rot) { rot.classList.toggle("on", s.controls.autoRotate); rot.setAttribute("aria-checked", String(s.controls.autoRotate)); }
+  });
+  [["m3ModeLit", "lit"], ["m3ModeClay", "clay"], ["m3ModeWire", "wire"]].forEach(([id, mode]) => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener("click", () => { m3Mode = mode; m3ApplyMode(); });
+  });
+  const envBtn = document.getElementById("m3EnvBtn");
+  const envPop = document.getElementById("m3EnvPop");
+  if (envBtn && envPop) envBtn.addEventListener("click", () => { envPop.hidden = !envPop.hidden; });
+  const envStrength = document.getElementById("m3EnvStrength");
+  if (envStrength) envStrength.addEventListener("input", () => {
+    if (!m3three) return;
+    const v = parseInt(envStrength.value, 10) / 100;
+    m3three.renderer.toneMappingExposure = v;
+    m3three.scene.traverse((o) => {
+      if (o.isMesh && o.material && "envMapIntensity" in o.material) o.material.envMapIntensity = v;
+    });
+    if (m3three.clayMat) m3three.clayMat.envMapIntensity = v;
+  });
+  const envHdri = document.getElementById("m3EnvHdri");
+  if (envHdri) envHdri.addEventListener("change", () => {
+    if (!m3three) return;
+    const s = m3three, wrap = document.getElementById("m3CanvasWrap");
+    if (envHdri.value === "studio") { s.key.intensity = 2.4; s.key.color.set(0xffffff); if (wrap) wrap.style.background = "radial-gradient(120% 100% at 50% 30%, #26282f, #141519)"; }
+    else if (envHdri.value === "dusk") { s.key.intensity = 1.5; s.key.color.set(0xffc38a); if (wrap) wrap.style.background = "radial-gradient(120% 100% at 50% 30%, #2b2119, #171310)"; }
+    else { s.key.intensity = 1.6; s.key.color.set(0xffffff); if (wrap) wrap.style.background = ""; }
+  });
+  const envRotate = document.getElementById("m3EnvRotate");
+  if (envRotate) envRotate.addEventListener("click", () => {
+    const on = envRotate.getAttribute("aria-checked") !== "true";
+    envRotate.setAttribute("aria-checked", String(on));
+    envRotate.classList.toggle("on", on);
+    if (m3three) m3three.controls.autoRotate = on;
+    if (viewer) { if (on) viewer.setAttribute("auto-rotate", ""); else viewer.removeAttribute("auto-rotate"); }
+  });
+  const envBg = document.getElementById("m3EnvBg");
+  if (envBg) envBg.addEventListener("click", () => {
+    const on = envBg.getAttribute("aria-checked") !== "true";
+    envBg.setAttribute("aria-checked", String(on));
+    envBg.classList.toggle("on", on);
+    const wrap = document.getElementById("m3CanvasWrap");
+    if (wrap) wrap.classList.toggle("nobg", !on);
+  });
+  const shareBtn = document.getElementById("m3ShareBtn");
+  if (shareBtn) shareBtn.addEventListener("click", async () => {
+    const data = { title: document.title, text: "Free 2D + 3D AI hub — m4ster FrameLab TEST", url: location.href };
+    try {
+      if (navigator.share) { await navigator.share(data); return; }
+      await navigator.clipboard.writeText(location.href);
+      say("Link copied — share it anywhere.");
+    } catch (e) { /* user cancelled the share sheet */ }
+  });
+  const reuseBtn = document.getElementById("m3ReuseBtn");
+  if (reuseBtn) reuseBtn.addEventListener("click", () => {
+    const rail = document.querySelector(".m3-rail");
+    if (rail) rail.scrollIntoView({ behavior: "smooth", block: "start" });
+    say("Same image, same model — tweak anything and hit Generate again.");
+  });
+  [["m3DockAnimate", "Animate"], ["m3DockPrint", "Print"]].forEach(([id, name]) => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener("click", () => {
+      const target = document.getElementById(name === "Animate" ? "labAnimate" : "labPrint");
+      if (target) { target.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      else say(name + " panel lands in the next drop of this build — the viewer comes first.");
+    });
+  });
 
   async function runOne(id) {
     if (id === "sf3d") return m3RunSF3D(file, say);
@@ -5313,7 +5621,7 @@ function wire3DLab() {
          * TRELLIS (community) → Hunyuan3D-2 Mini Turbo (shape-only).
          * Any failure switches to the next with an announcement; a
          * ZeroGPU quota refusal is announced as a busy GPU budget. */
-        const chain = ["sf3d", "trellis2", "instantmesh", "trellis", "hunyuan-mini"];
+        const chain = (window.M3_MULTIVIEW || window.M3_SMART_TOPO) ? ["instantmesh", "sf3d", "trellis2", "trellis", "hunyuan-mini"] : ["sf3d", "trellis2", "instantmesh", "trellis", "hunyuan-mini"];
         let lastErr = null;
         for (let i = 0; i < chain.length; i++) {
           try {
@@ -5372,7 +5680,7 @@ function wire3DLab() {
     } finally {
       running = false;
       go.disabled = !file;
-      go.textContent = "GENERATE MESH";
+      go.textContent = "✨ Generate";
     }
   });
 }
