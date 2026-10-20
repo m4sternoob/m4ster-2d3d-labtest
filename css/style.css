@@ -1956,3 +1956,33 @@ body.dim-3d .fresh-lab { display: none; }
 .m3-bridge-note{font-size:11.5px;color:#8b8b98;margin-top:9px;line-height:1.45}
 .m3-drop-genlink{display:block;margin:10px auto 2px;background:none;border:none;color:#a6f750;font-size:13px;font-weight:600;cursor:pointer}
 .m3-drop-genlink:hover{text-decoration:underline}
+
+/* ===== P5: Animate panel ===== */
+.lab-animate{max-width:1180px;margin:26px auto;padding:24px;border-radius:20px;background:linear-gradient(180deg,rgba(255,255,255,.045),rgba(255,255,255,.015));border:1px solid rgba(255,255,255,.09);box-shadow:0 24px 50px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.07)}
+.lab-animate[hidden]{display:none}
+.la-head h2{margin:0 0 4px;font-size:24px}
+.la-rigbanner{display:flex;align-items:center;gap:16px;margin:16px 0;padding:16px 18px;border-radius:14px;background:linear-gradient(120deg,rgba(166,247,80,.14),rgba(124,77,255,.14));border:1px solid rgba(166,247,80,.35);box-shadow:inset 0 1px 0 rgba(255,255,255,.12)}
+.la-rig-art{font-size:30px}
+.la-rig-text{flex:1;display:flex;flex-direction:column;gap:2px}
+.la-rig-text span{font-size:13px;color:#b9b9c4}
+.la-rig-btn{background:#a6f750;color:#101408;border:none;border-radius:10px;padding:11px 18px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(166,247,80,.25),inset 0 1px 0 rgba(255,255,255,.5)}
+.la-search{width:100%;padding:11px 14px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:#14141b;color:#eee;font-size:14px;margin:4px 0 6px}
+.la-lib-head{margin:20px 0 10px;font-size:16px}
+.la-cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:760px){.la-cards{grid-template-columns:1fr}}
+.la-card{padding:16px;border-radius:14px;background:#14141b;border:1px solid rgba(255,255,255,.09);box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.la-card p{font-size:13px;color:#a9a9b5;line-height:1.45}
+.la-t2m-row{display:flex;gap:8px;margin-top:10px}
+.la-t2m-row input{flex:1;padding:9px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.14);background:#0f0f14;color:#eee;font-size:13px}
+.la-t2m-row button,.la-vid-btn{background:#23232e;border:1px solid rgba(255,255,255,.16);color:#c9f79a;border-radius:9px;padding:9px 14px;cursor:pointer;font-weight:600}
+.la-note{font-size:12.5px;color:#9fe870;min-height:16px;margin-top:8px}
+.la-vid{width:100%;margin-top:10px;border-radius:10px}
+.la-mine{display:flex;flex-wrap:wrap;gap:8px}
+.la-mine-chip{display:inline-flex;align-items:center;gap:8px;background:#1b1b24;border:1px solid rgba(166,247,80,.4);color:#e8e8ee;border-radius:999px;padding:6px 8px 6px 13px;font-size:12.5px}
+.la-mine-chip button{background:#a6f750;border:none;color:#101408;border-radius:999px;padding:3px 10px;font-weight:700;cursor:pointer;font-size:12px}
+.la-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.la-preset{padding:14px 12px;border-radius:12px;background:#14141b;border:1px solid rgba(255,255,255,.09);color:#e8e8ee;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:4px;box-shadow:inset 0 1px 0 rgba(255,255,255,.06)}
+.la-preset strong{font-size:13.5px}
+.la-preset span{font-size:11px;color:#8b8b98}
+.la-preset:hover{border-color:rgba(166,247,80,.55)}
+.la-preset.active{border-color:#a6f750;background:rgba(166,247,80,.1)}
