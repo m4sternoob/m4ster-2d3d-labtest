@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>m4ster FrameLab — free 2D game sprite generator</title>
+<title>m4ster FrameLab TEST — free 2D game sprite generator</title>
 <meta name="description" content="m4ster FrameLab: prompt-first 2D game sprite + animation atlas studio in your browser. Free forever, open source, unlimited use. No keys, no signup, no payments. For the gamers, by the gamers.">
 <link rel="icon" type="image/svg+xml" href="logo-mf.svg">
 <link rel="manifest" href="manifest.json">
@@ -44,7 +44,7 @@
     </svg>
     </span>
     <div class="brand-text">
-      <div class="brand-name">M4STER <span class="brand-sub">FRAMELAB</span></div>
+      <div class="brand-name">M4STER <span class="brand-sub">FRAMELAB</span> <span class="brand-test">TEST</span></div>
       <div class="tagline">For the gamers, by the gamers</div>
     </div>
   </button>
@@ -170,22 +170,35 @@
         <optgroup label="Auto — free chain, self-switching">
           <option value="auto">&#9889; Auto — free models, switches itself on limits</option>
         </optgroup>
-        <optgroup label="Free — no key needed (ranked best → least)">
-          <option value="horde-flux">AI Horde · FLUX.1 Schnell — top quality, no key</option>
+        <optgroup label="Sprites &amp; flat 2D — free, no key">
+          <option value="horde-flat2d">AI Horde · Flat-2D Animerge — flat 2D, made for sprites</option>
+          <option value="horde-novaflat">AI Horde · Nova Flat XL — flat-shaded XL</option>
+          <option value="horde-pixel">AI Horde · AIO Pixel Art — pixel art specialist</option>
+        </optgroup>
+        <optgroup label="Anime &amp; cel — free, no key">
+          <option value="horde-rev">AI Horde · Rev Animated — anime &amp; animated</option>
+          <option value="horde-animagine">AI Horde · Animagine XL — modern anime</option>
+          <option value="horde-anything5">AI Horde · Anything v5 — anime all-rounder</option>
+          <option value="horde-anything">AI Horde · Anything Diffusion — anime classic</option>
+          <option value="horde-counterfeit">AI Horde · Counterfeit — anime, high quality</option>
+          <option value="horde-ghibli">AI Horde · Ghibli Diffusion — whimsical storybook</option>
+        </optgroup>
+        <optgroup label="SDXL quality — free, no key">
           <option value="horde-juggernaut">AI Horde · Juggernaut XL — best all-rounder, slower</option>
           <option value="horde-dreamshaper-xl">AI Horde · DreamShaper XL — versatile game art</option>
-          <option value="horde-deliberate">AI Horde · Deliberate — better quality</option>
+          <option value="horde-dreamshaper">AI Horde · Dreamshaper — the classic all-rounder</option>
           <option value="horde-albedo">AI Horde · AlbedoBase XL — sharp SDXL detail</option>
-          <option value="horde-rev">AI Horde · Rev Animated — anime &amp; animated</option>
-          <option value="horde-flat2d">AI Horde · Flat-2D Animerge — flat 2D, made for sprites</option>
-          <option value="horde-pixel">AI Horde · AIO Pixel Art — pixel art specialist</option>
-          <option value="horde-counterfeit">AI Horde · Counterfeit — anime, high quality</option>
-          <option value="horde-realvis">AI Horde · Realistic Vision — realistic characters</option>
-          <option value="horde-icbinp">AI Horde · ICBINP — photoreal</option>
-          <option value="horde-anything">AI Horde · Anything Diffusion — anime classic</option>
-          <option value="horde-zimage">AI Horde · Z-Image-Turbo — fast new model</option>
           <option value="horde-sdxl">AI Horde · SDXL 1.0 — solid base model</option>
-          <option value="horde-ghibli">AI Horde · Ghibli Diffusion — whimsical storybook</option>
+          <option value="horde-deliberate">AI Horde · Deliberate — better quality</option>
+          <option value="horde-absreality">AI Horde · AbsoluteReality — realistic</option>
+          <option value="horde-icbinp">AI Horde · ICBINP — photoreal</option>
+          <option value="horde-realvis">AI Horde · Realistic Vision — realistic characters</option>
+          <option value="horde-photon">AI Horde · Photon — clean renders, few workers</option>
+        </optgroup>
+        <optgroup label="Fast &amp; new — free, no key">
+          <option value="space-flux">HF Space · FLUX.1-schnell — fastest stills (~5s), no key</option>
+          <option value="horde-flux">AI Horde · FLUX.1 Schnell — top quality, no key</option>
+          <option value="horde-zimage">AI Horde · Z-Image-Turbo — fast new model</option>
           <option value="horde-sd">AI Horde · Stable Diffusion — quick classic</option>
         </optgroup>
         <optgroup label="Free key — paste once, saved in your browser">
@@ -300,7 +313,11 @@
       </div>
     </div>
 
-    <div class="viz-panel">
+    
+  </section>
+
+  <!-- bottom band: visualizer + downloads, full width, centred -->
+  <section class="viz-panel viz-band" aria-label="Visualizer and downloads">
       <div class="viz-head">
         <span class="viz-title">Visualizer</span>
         <span class="dim">every sprite + animation, live</span>
@@ -348,25 +365,93 @@
         <div class="export-note">Bundle = sheet PNG + animated GIF preview + manifest (absolute frame rects, fps, loop). Your game reads the rects — never recompute.</div>
       </div>
     </div>
-    </div>
-  </section>
+    </section>
 </main>
+
+<!-- ============ test build: Fresh from the Lab (his order 2026-10-20) ============
+     Auto-scrolling showcase under the tool: newest hub drops, smooth marquee. -->
+<section class="fresh-lab" id="freshLab">
+  <hr class="rgb-sep">
+  <div class="fresh-head">
+    <h2>Fresh from the Lab</h2>
+    <p>The newest drops in the hub — fresh models, tools and lab wins land here first.</p>
+  </div>
+  <div class="fresh-marquee">
+    <div class="fresh-track">
+      <div class="fresh-set">
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
+      </div>
+      <div class="fresh-set" aria-hidden="true">
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
+        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section id="lab3d" hidden>
   <div class="lab3d-card">
-    <div class="lab3d-badge">PHASE 2 &middot; IN THE HUB QUEUE</div>
-    <h2>3D Lab <span class="dim">&mdash; mesh generation, same rules</span></h2>
-    <p class="lab3d-lede">The flip at the top is the whole idea: <strong>one hub</strong>. 2D sprites today,
-    3D meshes next &mdash; every good open model, attached through free APIs, no signup, no keys,
-    and when one model hits its limit the hub <strong>switches to the next one itself</strong>.</p>
-    <div class="lab3d-grid">
-      <div class="m3-card"><div class="m3-name">TripoSR</div><div class="m3-by">Stability AI &middot; open weights</div><span class="m3-chip">queued</span></div>
-      <div class="m3-card"><div class="m3-name">Hunyuan3D 2</div><div class="m3-by">Tencent &middot; open weights</div><span class="m3-chip">queued</span></div>
-      <div class="m3-card"><div class="m3-name">TRELLIS</div><div class="m3-by">Microsoft &middot; open research</div><span class="m3-chip">queued</span></div>
-      <div class="m3-card"><div class="m3-name">InstantMesh</div><div class="m3-by">open source</div><span class="m3-chip">queued</span></div>
+    <div class="lab3d-badge">LIVE &middot; FREE 3D &mdash; NO SIGNUP, NO KEYS</div>
+    <h2>3D Lab <span class="dim">&mdash; image &rarr; mesh, same rules</span></h2>
+    <p class="lab3d-lede">The flip at the top is the whole idea: <strong>one hub</strong>. Drop in an image
+    and a free open model turns it into a real 3D mesh &mdash; a GLB that drops straight into
+    Unity / Unreal / Godot. No signup, no keys, and in AUTO mode the hub
+    <strong>switches provider itself</strong> if one fails &mdash; same deal as the 2D side.</p>
+
+    <div class="m3-drop" id="m3Drop" role="button" tabindex="0" aria-label="Choose an image to turn into a 3D mesh">
+      <input type="file" id="m3File" accept="image/*" hidden>
+      <img id="m3Thumb" class="m3-thumb" alt="Selected image preview" hidden>
+      <div class="m3-drop-text" id="m3DropText">
+        <strong>Drop an image here</strong> or click to pick one<br>
+        <span class="dim">PNG / JPG &mdash; one subject on a plain background works best</span>
+      </div>
     </div>
-    <p class="lab3d-note">2D gets solved first &mdash; that&rsquo;s the deal. When 3D lands it lands here,
-    in this same tab, with image &rarr; mesh and text &rarr; mesh, GLB export for Unity / Unreal / Godot.</p>
+
+    <button id="m3UseChar" class="m3-bridge" type="button">Use my 2D character &mdash; turn your latest sprite into a mesh</button>
+
+    <label class="m3-label" for="m3Provider">Provider</label>
+    <select id="m3Provider" class="ai-model-select m3-select">
+      <option value="auto">AUTO &mdash; recommended (Stable Fast 3D first, then TRELLIS.2, then InstantMesh, then TRELLIS, then Hunyuan3D-2 Mini Turbo)</option>
+      <option value="sf3d">Stable Fast 3D &mdash; Stability AI &middot; fast, textured GLB</option>
+      <option value="trellis2">TRELLIS.2 &mdash; textured, ~1 min</option>
+      <option value="instantmesh">InstantMesh &mdash; Tencent ARC &middot; dense mesh, GLB + OBJ</option>
+      <option value="trellis">TRELLIS (community) &mdash; the original, single-call GLB</option>
+      <option value="hunyuan-mini">Hunyuan3D-2 Mini Turbo &mdash; fastest mesh (~15s), untextured</option>
+    </select>
+
+    <label class="m3-label" for="m3Token">Hugging Face token (optional &mdash; free token lifts the GPU quota)</label>
+    <input type="password" id="m3Token" class="m3-token" placeholder="paste your Hugging Face token" autocomplete="off" spellcheck="false">
+    <p class="ai-key-hint">Free token: <a href="https://huggingface.co/settings/tokens" target="_blank" rel="noopener">huggingface.co/settings/tokens</a> &rarr; New token (Read) &rarr; paste here. Saved only in your browser &mdash; it&rsquo;s the same token the 2D side uses for HF FLUX, so if you saved it there it&rsquo;s already filled in. Anonymous still works; a token just buys more free GPU time when the shared quota runs dry.</p>
+
+    <button id="m3Go" class="generate m3-go" type="button" disabled>GENERATE MESH</button>
+    <div id="m3Status" class="m3-status" role="status" aria-live="polite">Pick an image to start &mdash; it&rsquo;s free.</div>
+
+    <div id="m3Result" class="m3-result" hidden>
+      <model-viewer id="m3Viewer" class="m3-viewer" camera-controls auto-rotate hidden></model-viewer>
+      <a id="m3Glb" class="m3-dl" href="#" download="framelab-mesh.glb">&#11015; Download GLB <span id="m3GlbSize" class="m3-dl-size"></span></a>
+      <a id="m3Obj" class="m3-dl m3-dl-alt" href="#" download="framelab-mesh.obj" hidden>&#11015; Download OBJ <span id="m3ObjSize" class="m3-dl-size"></span></a>
+      <p class="lab3d-note" id="m3ResultNote"></p>
+    </div>
+
+    <p class="lab3d-note">Runs on free community GPUs (Hugging Face Spaces) &mdash; queues happen.
+    AUTO rides them out by switching. More 3D models join the hub as they prove themselves here.</p>
   </div>
 </section>
 
