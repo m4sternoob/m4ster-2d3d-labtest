@@ -616,6 +616,40 @@
   </div>
 </section>
 
+<section id="labAnimate" class="lab-animate" hidden>
+  <div class="la-head">
+    <h2>Animate</h2>
+    <p class="dim">Procedural motions that play live on your mesh in the viewer — no rig, no bones, no cost.</p>
+  </div>
+  <div class="la-rigbanner">
+    <div class="la-rig-art">&#129460;</div>
+    <div class="la-rig-text"><strong>Rig the model to animate</strong><span>Your GLB carries no skeleton — these motions move the whole mesh procedurally, right in the viewer.</span></div>
+    <button type="button" class="la-rig-btn" id="laRigBtn">Rig &amp; preview</button>
+  </div>
+  <input type="search" id="laSearch" class="la-search" placeholder="Search motion" aria-label="Search motion">
+  <h3 class="la-lib-head">Library</h3>
+  <div class="la-cards">
+    <div class="la-card">
+      <strong>Text to Motion</strong>
+      <p>Describe it in a few words — the free library matches it to a real motion and plays it.</p>
+      <div class="la-t2m-row"><input type="text" id="laT2mInput" placeholder="e.g. victory dance" aria-label="Describe a motion"><button type="button" id="laT2mBtn">Generate</button></div>
+      <p class="la-note" id="laT2mStatus"></p>
+    </div>
+    <div class="la-card">
+      <strong>Video to Motion</strong>
+      <p>Pose-capture from video is on the lab bench — not in the free hub yet. Preview your clip here meanwhile:</p>
+      <button type="button" class="la-vid-btn" id="laVidBtn">Pick a video</button>
+      <input type="file" id="laVidFile" accept="video/*" hidden>
+      <video id="laVidPrev" class="la-vid" controls playsinline hidden></video>
+    </div>
+  </div>
+  <h3 class="la-lib-head">AI Motions <span class="dim">— yours this session</span></h3>
+  <div class="la-mine" id="laMine"><p class="dim" id="laMineEmpty">Your motions will appear here.</p></div>
+  <h3 class="la-lib-head">Preset Motions</h3>
+  <div class="la-grid" id="laGrid"></div>
+  <p class="la-note" id="laStatus" role="status" aria-live="polite"></p>
+</section>
+
 <section id="labAssets" class="assets-sec">
   <div class="assets-head">
     <div>
