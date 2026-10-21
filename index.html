@@ -129,7 +129,7 @@
 
 <!-- ============ v6 GALLERY: moving preview cards (Ludo pattern) ============ -->
 <section class="page-section" id="gallery" aria-label="Fresh from the lab">
-  <h2 class="section-title">Fresh from the lab <span class="dim">— live renders, click any card to open it</span></h2>
+  <h2 class="section-title">Fresh from the lab <span class="dim">— live renders, click any card to open it</span><span class="gal-nav"><button type="button" id="galPrev" class="gal-arrow" aria-label="Previous cards">&#8249;</button><button type="button" id="galNext" class="gal-arrow" aria-label="Next cards">&#8250;</button></span></h2>
   <div class="gallery-grid" id="galleryGrid"></div>
 </section>
 
@@ -371,74 +371,6 @@
     </section>
 </main>
 
-<!-- ============ Rodin addendum: honest comparison + FAQ ============ -->
-<div class="info-duo">
-<section class="info-sec" id="compareSec">
-  <h2 class="section-title">The free hub vs the paid top 3</h2>
-  <p class="dim">Their numbers from their own pages (Oct 2026). Ours from the provider lab — every model on the roster earned its place with a real generation.</p>
-  <div class="cmp-wrap">
-    <table class="cmp">
-      <thead><tr><th>Feature</th><th class="cmp-us">FrameLab Hub</th><th>Rodin Gen-2.5</th><th>Tripo P1</th><th>Hunyuan 3D</th></tr></thead>
-      <tbody>
-        <tr><td>Input</td><td class="cmp-us">Text, image, multi-view</td><td>Text, image, multi-image</td><td>Text, image</td><td>Text, image, multi-view</td></tr>
-        <tr><td>Speed</td><td class="cmp-us">~10s–70s by model</td><td>30s – 7 min</td><td>60–90 sec</td><td>3–4 min</td></tr>
-        <tr><td>Max texture</td><td class="cmp-us">Up to 4K where supported</td><td>4K (paid HighPack)</td><td>2K</td><td>8K</td></tr>
-        <tr><td>Text to 3D</td><td class="cmp-us">Yes — the Chain</td><td>Yes</td><td>Yes</td><td>Yes</td></tr>
-        <tr><td>Cost</td><td class="cmp-us">Free forever</td><td>Paid tiers</td><td>Paid credits</td><td>Paid tiers</td></tr>
-        <tr><td>Account</td><td class="cmp-us">None, ever</td><td>Required</td><td>Required</td><td>Required</td></tr>
-      </tbody>
-    </table>
-  </div>
-</section>
-
-<section class="info-sec" id="faqSec">
-  <h2 class="section-title">Frequently asked questions</h2>
-  <details class="faq"><summary>Is FrameLab really free?</summary><p>Yes — free forever, no paywall, no credits. It runs on free community GPUs (the AI Horde and public Hugging Face Spaces). The only price is the occasional queue, and AUTO rides it out by switching models for you.</p></details>
-  <details class="faq"><summary>Do I need an account or an API key?</summary><p>No account, no signup, no key. If you happen to have a free Hugging Face token, pasting it (it stays in your browser) lifts your daily GPU quota on the Spaces.</p></details>
-  <details class="faq"><summary>What do I get out of it?</summary><p>2D: transparent PNG sprites and sheets. 3D: textured GLB files, plus OBJ and FBX exports of any mesh, that drop straight into Unity, Unreal, Godot and Blender — the Engine Bridge in the viewer names the download for each one.</p></details>
-  <details class="faq"><summary>Who owns what I make?</summary><p>You do. Nothing is uploaded to us and there is no server of ours in the loop — generations run on the public model providers you pick, in your browser session.</p></details>
-  <details class="faq"><summary>Why did a generation switch models or fail?</summary><p>Free GPUs run on shared daily quotas. When one model is out of quota or down, AUTO moves to the next proven model on the roster and tells you it switched. The roster is deep on purpose — free generation should never run dry.</p></details>
-</section>
-</div>
-
-<!-- ============ test build: Fresh from the Lab (his order 2026-10-20) ============
-     Auto-scrolling showcase under the tool: newest hub drops, smooth marquee. -->
-<section class="fresh-lab" id="freshLab">
-  <hr class="rgb-sep">
-  <div class="fresh-head">
-    <h2>Fresh from the Lab</h2>
-    <p>The newest drops in the hub — fresh models, tools and lab wins land here first.</p>
-  </div>
-  <div class="fresh-marquee">
-    <div class="fresh-track">
-      <div class="fresh-set">
-        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
-      </div>
-      <div class="fresh-set" aria-hidden="true">
-        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">Stable Fast 3D</div><div class="fresh-note">Image → textured GLB in ~9 seconds. Free, no signup.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Nova Flat XL</div><div class="fresh-note">Flat-shaded XL style, made for clean sprite work.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Animagine XL</div><div class="fresh-note">Polished modern anime, straight into the hub roster.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">3D Lab · just landed</span><div class="fresh-name">InstantMesh</div><div class="fresh-note">Image → mesh with OBJ + GLB export.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Anything v5</div><div class="fresh-note">Anime all-rounder joins the no-key lineup.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Dreamshaper</div><div class="fresh-note">The classic all-rounder — now in the AUTO chain.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">Z-Image-Turbo</div><div class="fresh-note">Fast new-wave model, no key needed.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">New model</span><div class="fresh-name">AbsoluteReality</div><div class="fresh-note">Realistic characters, free on the Horde.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Pixel Converter</div><div class="fresh-note">Any image → pixel art, in the new Tools section.</div></div>
-        <div class="fresh-card"><span class="fresh-chip">Tool</span><div class="fresh-name">Sprite Slicer</div><div class="fresh-note">Sheets → frames, moved to Tools where it belongs.</div></div>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section id="lab3d" hidden>
   <div class="m3-studio">
     <!-- ===== left rail: Meshy model-panel layout ===== -->
@@ -456,10 +388,14 @@
 
       <div class="m3-chainbox">
         <strong>Text to 3D</strong>
-        <p>Describe it — the hub draws it in 2D first, then builds the mesh itself.</p>
+        <p>Describe it — the studio draws it and builds the mesh right here. The 2D side is never touched.</p>
+        <div class="m3-tsteps" id="m3TSteps"><span data-s="1" class="on">1 · Describe</span><span data-s="2">2 · Draw</span><span data-s="3">3 · Build mesh</span></div>
         <div class="m3-chain-row"><input type="text" id="m3ChainInput" placeholder="e.g. a tiny robot knight" aria-label="Describe a 3D model"><button type="button" id="m3ChainBtn">Generate 3D model</button></div>
+        <img id="m3ChainThumb" class="m3-chain-thumb" alt="The image drawn for your model" hidden>
         <p class="m3-chain-status" id="m3ChainStatus"></p>
       </div>
+
+      <div class="m3-isteps" id="m3ISteps"><span data-s="1" class="on">1 · Image</span><span data-s="2">2 · Model</span><span data-s="3">3 · Generate</span></div>
 
       <div class="m3-seg" role="group" aria-label="Topology mode">
         <button type="button" class="m3-seg-btn active" id="m3TopoDetail">High Detail</button>

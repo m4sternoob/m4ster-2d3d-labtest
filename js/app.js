@@ -6982,50 +6982,91 @@ document.addEventListener("DOMContentLoaded", function () {
   function flip3() { const f = $("flip3d"); if (f) f.click(); }
   function scrollTo(id) { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
 
-  /* --- the Chain: prompt -> 2D image -> auto mesh --- */
-  window.M3_ARM_CHAIN = function (promptText) {
-    const p = $("prompt");
-    if (p) p.value = promptText;
-    window.M3_CHAIN = { armed: true, armedAt: Date.now(), row0: rows()[0] || null };
-    const f2 = $("flip2d");
-    if (f2) f2.click();
-    const cs = $("m3ChainStatus");
-    if (cs) cs.textContent = "Step 1 of 2 — drawing your image… the mesh builds itself when it lands.";
-    const sk = $("skStatus");
-    if (sk) sk.textContent = "Skill running — image first, mesh right after, all automatic.";
-    scrollTo("tool");
-    /* one click means one click: fire the 2D Generate ourselves once the
-     * flip settles (the wizard's canvases need the 2D view laid out) */
-    setTimeout(() => { const g = $("generate"); if (g) g.click(); }, 700);
-  };
-  setInterval(() => {
-    const ch = window.M3_CHAIN;
-    if (!ch || !ch.armed) return;
-    if (ch.armedAt && Date.now() - ch.armedAt > 8 * 60 * 1000) {
-      ch.armed = false;
-      const cs = $("m3ChainStatus");
-      if (cs) cs.textContent = "The image didn't land in 8 minutes (free queues crawl at peak) — chain cancelled. Your prompt is still in the 2D box; Generate there or chain again.";
-      return;
-    }
-    const top = rows()[0];
-    if (!top || top === ch.row0 || !top.frames || !top.frames[0]) return;
-    ch.armed = false;
-    top.frames[0].toBlob((blob) => {
-      if (!blob) return;
-      flip3();
-      if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-chain.png", { type: "image/png" }));
-      const cs = $("m3ChainStatus");
-      if (cs) cs.textContent = "Step 2 of 2 — image landed, building your mesh…";
+  /* --- Text to 3D: fully independent, inside the studio ---
+   * The studio draws the image itself through the same free AI API the
+   * 2D side uses — the 2D wizard is never opened, flipped to, or
+   * borrowed, and its rows are never touched. Steps live in the panel:
+   * 1 Describe, 2 Draw, 3 Build mesh. */
+  function t3dStep(n) {
+    const box = $("m3TSteps");
+    if (!box) return;
+    box.querySelectorAll("span").forEach((sp) => {
+      const k = parseInt(sp.getAttribute("data-s"), 10);
+      sp.classList.toggle("on", k === n);
+      sp.classList.toggle("done", k < n);
+    });
+  }
+  function t3dStatus(t) { const cs = $("m3ChainStatus"); if (cs) cs.textContent = t; }
+  window.M3_TEXT_TO_3D = async function (promptText) {
+    if (window.M3_T3D_RUNNING) { t3dStatus("Already drawing one — give it a moment."); return; }
+    const text = (promptText || "").trim();
+    if (!text) { t3dStatus("Describe the model first."); return; }
+    window.M3_T3D_RUNNING = true;
+    const btn = $("m3ChainBtn");
+    if (btn) btn.disabled = true;
+    try {
+      t3dStep(2);
+      const shaped = text + ", full body, single object, centered, plain solid background, game asset, digital art";
+      const bmp = await aiGenerateImage(shaped, 512, 512, (st) => t3dStatus("Step 2 of 3 — drawing… " + st));
+      if (!bmp) throw new Error("the image step came back empty — the free queue may have eaten it, try once more.");
+      const cv = document.createElement("canvas");
+      cv.width = bmp.width || 512; cv.height = bmp.height || 512;
+      cv.getContext("2d").drawImage(bmp, 0, 0);
+      const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+      if (!blob) throw new Error("could not package the drawn image.");
+      const thumb = $("m3ChainThumb");
+      if (thumb) { thumb.src = cv.toDataURL("image/png"); thumb.hidden = false; }
+      t3dStep(3);
+      t3dStatus("Step 3 of 3 — drawn right here in the studio. Building your mesh…");
+      if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-to-3d.png", { type: "image/png" }));
       setTimeout(() => { const go = $("m3Go"); if (go && !go.disabled) go.click(); }, 600);
-    }, "image/png");
-  }, 1000);
+    } catch (e) {
+      t3dStep(1);
+      t3dStatus("Text to 3D stopped: " + String((e && e.message) || e).slice(0, 220));
+    } finally {
+      window.M3_T3D_RUNNING = false;
+      if (btn) btn.disabled = false;
+    }
+  };
+  /* Skills enter through the studio: land on the 3D side, switch the
+   * rail to Text mode, fill the prompt, run the same independent flow. */
+  window.M3_ARM_CHAIN = function (promptText) {
+    flip3();
+    const tt = $("m3TabText");
+    if (tt) tt.click();
+    const inp = $("m3ChainInput");
+    if (inp) inp.value = promptText;
+    const sk = $("skStatus");
+    if (sk) sk.textContent = "Skill running in the 3D studio — image first, mesh right after, all automatic.";
+    scrollTo("lab3d");
+    window.M3_TEXT_TO_3D(promptText);
+  };
   const chainBtn = $("m3ChainBtn");
   if (chainBtn) chainBtn.addEventListener("click", () => {
     const inp = $("m3ChainInput");
     const text = inp && inp.value.trim();
-    if (!text) { const cs = $("m3ChainStatus"); if (cs) cs.textContent = "Describe the model first."; return; }
-    window.M3_ARM_CHAIN(text);
+    if (!text) { t3dStatus("Describe the model first."); return; }
+    window.M3_TEXT_TO_3D(text);
   });
+
+  /* image-mode steps: 1 Image, 2 Model, 3 Generate — the studio's own,
+   * independent of the 2D wizard's five steps. Polled from real state:
+   * a source thumb / enabled Generate means step 1 is done; a loaded
+   * model means all three are. */
+  setInterval(() => {
+    const box = $("m3ISteps");
+    if (!box) return;
+    const go = $("m3Go");
+    const thumb = $("m3Thumb");
+    const hasSrc = (thumb && !thumb.hidden) || (go && !go.disabled);
+    const hasModel = !!(window.M3_HAS_MODEL && window.M3_HAS_MODEL());
+    const cur = hasModel ? 4 : hasSrc ? 2 : 1;
+    box.querySelectorAll("span").forEach((sp) => {
+      const k = parseInt(sp.getAttribute("data-s"), 10);
+      sp.classList.toggle("on", k === cur);
+      sp.classList.toggle("done", k < cur);
+    });
+  }, 800);
 
   /* --- skills --- */
   const SKILLS = [
@@ -7078,4 +7119,25 @@ document.addEventListener("DOMContentLoaded", function () {
       scrollTo("lab3d");
     } else if (kind === "mv") { flip3(); const mv = $("m3MultiView"); if (mv) mv.click(); scrollTo("lab3d"); }
   });
+});
+
+/* ===== featured slider: arrows + auto-advance (portfolio GIF-player pattern) ===== */
+document.addEventListener("DOMContentLoaded", function () {
+  const grid = document.getElementById("galleryGrid");
+  if (!grid) return;
+  const step = () => { const c = grid.querySelector(".gcard"); return c ? c.getBoundingClientRect().width + 12 : 260; };
+  const go = (d) => {
+    const max = grid.scrollWidth - grid.clientWidth - 4;
+    let x = grid.scrollLeft + d * step();
+    if (x > max) x = 0;
+    if (x < 0) x = max;
+    grid.scrollTo({ left: x, behavior: "smooth" });
+  };
+  const prev = document.getElementById("galPrev"), next = document.getElementById("galNext");
+  if (prev) prev.addEventListener("click", () => go(-1));
+  if (next) next.addEventListener("click", () => go(1));
+  let hold = false;
+  ["pointerenter", "pointerdown", "touchstart"].forEach((ev) => grid.addEventListener(ev, () => { hold = true; }, { passive: true }));
+  grid.addEventListener("pointerleave", () => { hold = false; });
+  setInterval(() => { if (!hold && !document.hidden && grid.children.length > 1) go(1); }, 4200);
 });
