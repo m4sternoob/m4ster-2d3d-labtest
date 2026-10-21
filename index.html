@@ -68,7 +68,7 @@
 </header>
 
 <!-- ============ v6 HERO: prompt-first (Seele pattern, zero login) ============ -->
-<section class="hero page-section" id="hero">
+<section class="hero page-section" id="hero" data-mml="hero">
   <div class="hero-inner">
     <div class="hero-eyebrow">FREE · UNLIMITED · NO SIGNUP · ACTUALLY</div>
     <h1 class="hero-title">What will you <em>make</em> today?</h1>
@@ -90,7 +90,7 @@
 </div></div>
 
 <!-- ============ v6 CATEGORY CARDS (Seele bottom-cards pattern) ============ -->
-<section class="page-section" id="catCards" aria-label="What do you want to make?">
+<section class="page-section" id="catCards" data-mml="cats" aria-label="What do you want to make?">
   <h2 class="section-title">What do you want to make?</h2>
   <div class="cat-grid">
     <button class="cat-card" data-cat="character" type="button">
@@ -113,7 +113,7 @@
 </section>
 
 <!-- ============ TOOLS: standalone utilities (not generation) ============ -->
-<section class="page-section" id="toolsStrip" aria-label="Standalone tools">
+<section class="page-section" id="toolsStrip" data-mml="tools" aria-label="Standalone tools">
   <h2 class="section-title">Tools <span class="dim">&mdash; standalone utilities, not generation</span></h2>
   <div class="tools-grid">
     <button class="tool-card" data-cat="pixelart" type="button">
@@ -128,19 +128,21 @@
 </section>
 
 <!-- ============ v6 GALLERY: moving preview cards (Ludo pattern) ============ -->
-<section class="page-section" id="gallery" aria-label="Fresh from the lab">
+<section class="page-section" id="gallery" data-mml="gallery" aria-label="Fresh from the lab">
   <h2 class="section-title">Fresh from the lab <span class="dim">— live renders, click any card to open it</span><span class="gal-nav"><button type="button" id="galPrev" class="gal-arrow" aria-label="Previous cards">&#8249;</button><button type="button" id="galNext" class="gal-arrow" aria-label="Next cards">&#8250;</button></span></h2>
   <div class="gallery-grid" id="galleryGrid"></div>
 </section>
 
 <!-- ============ v6 MOTION PRESETS (Ludo pattern) ============ -->
-<section class="page-section" id="presets" aria-label="Motion presets">
+<section class="page-section" id="presets" data-mml="presets" aria-label="Motion presets">
   <h2 class="section-title">Motion presets <span class="dim">— pick a motion, it drives procedural + split animations</span></h2>
   <div class="preset-row" id="presetRow"></div>
 </section>
 
+<div data-mml-zone="lab" id="mmlZone"></div>
+
 <!-- ============ THE LAB (tool — stepper kept for the build view) ============ -->
-<main class="layout page-section" id="tool">
+<main class="layout page-section" id="tool" data-mml="lab2d">
 
   <!-- ============ LEFT: CONTROLS ============ -->
   <aside class="panel controls">
@@ -320,7 +322,7 @@
   </section>
 
   <!-- bottom band: visualizer + downloads, full width, centred -->
-  <section class="viz-panel viz-band" aria-label="Visualizer and downloads">
+  <section class="viz-panel viz-band" aria-label="Visualizer and downloads" data-mml="viz">
       <div class="viz-head">
         <span class="viz-title">Visualizer</span>
         <span class="dim">every sprite + animation, live</span>
@@ -371,7 +373,7 @@
     </section>
 </main>
 
-<section id="lab3d" hidden>
+<section id="lab3d" data-mml="lab3d" hidden>
   <div class="m3-studio">
     <!-- ===== left rail: Meshy model-panel layout ===== -->
     <aside class="m3-rail">
@@ -591,7 +593,7 @@
   </div>
 </section>
 
-<section id="labAnimate" class="lab-animate" hidden>
+<section id="labAnimate" class="lab-animate" data-mml="animate" hidden>
   <div class="la-head">
     <h2>Animate</h2>
     <p class="dim">Procedural motions that play live on your mesh in the viewer — no rig, no bones, no cost.</p>
@@ -625,7 +627,7 @@
   <p class="la-note" id="laStatus" role="status" aria-live="polite"></p>
 </section>
 
-<section id="labPrint" class="lab-animate lab-print" hidden>
+<section id="labPrint" class="lab-animate lab-print" data-mml="print" hidden>
   <div class="la-head">
     <h2>Print &amp; Post-Processing</h2>
     <p class="dim">Judged by the same yardstick the slicer world uses — real numbers from your actual mesh, never estimates.</p>
@@ -694,7 +696,7 @@
   </div>
 </section>
 
-<section id="labSkills" class="lab-animate lab-skills">
+<section id="labSkills" class="lab-animate lab-skills" data-mml="skills">
   <div class="la-head">
     <h2>Skills</h2>
     <p class="dim">One-tap agent shortcuts and photo-to-figure presets — every one runs on the free chain: image first, mesh auto-builds.</p>
@@ -712,7 +714,7 @@
   <p class="la-note" id="skStatus" role="status" aria-live="polite"></p>
 </section>
 
-<section id="labAssets" class="assets-sec">
+<section id="labAssets" class="assets-sec" data-mml="assets">
   <div class="assets-head">
     <div>
       <h2>My Assets</h2>

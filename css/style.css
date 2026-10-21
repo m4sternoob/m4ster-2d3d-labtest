@@ -2100,3 +2100,126 @@ body:not(.dim-3d) #labSkills { display: none !important; }
 .m3-tsteps span.done, .m3-isteps span.done { color: #cdbcf5; border-color: #7c4dff; background: rgba(124,77,255,.18); }
 .m3-rail.text-mode .m3-isteps { display: none; }
 .m3-chain-thumb { width: 100%; border-radius: 10px; margin-top: 8px; border: 1px solid rgba(124,77,255,.4); }
+
+/* ===== compact round 2: viewport-fit studio, smaller windows ===== */
+@media (min-width: 900px) {
+  .m3-studio { height: calc(100dvh - 196px); min-height: 430px; }
+  .m3-rail { overflow-y: auto; max-height: 100%; }
+  .m3-stage { height: 100%; min-height: 0; }
+}
+.m3-stats { font-size: 10.5px; padding: 7px 9px; line-height: 1.5; }
+.m3-envpop { width: 262px; padding: 11px; border-radius: 13px; }
+.m3-env-head { font-size: 13px; padding-bottom: 7px; margin-bottom: 3px; }
+.m3-env-row { padding: 5px 0; font-size: 12.5px; }
+.m3-env-row select { padding: 5px; font-size: 12px; }
+.m3-bridge-note { font-size: 11px; }
+.m3-docks { padding: 8px; gap: 7px; }
+.m3-dock { padding: 4px; border-radius: 13px; }
+.m3-dock-btn { padding: 5px 9px; font-size: 12px; }
+.m3-rail select, .m3-rail input[type="text"], .m3-chain-row input { padding: 6px 8px; font-size: 12.5px; }
+#m3Go { padding: 10px; font-size: 14px; }
+.m3-drop { padding: 10px; }
+#m3Samples img { height: 42px; }
+.hero { padding: 14px 12px 6px; }
+.topbar { padding-top: 5px; padding-bottom: 5px; }
+#generate { padding: 10px; }
+
+/* ===== MML layout toolbar (portfolio port) ===== */
+/* ---- m4ster layout tools: drag-drop reorder, edit mode only (locked otherwise) ---- */
+.mml-handle {display:none}
+.mml-guide {position:fixed;z-index:9999;pointer-events:none;background:#e63946;opacity:.7;display:none}
+.mml-guide.v {width:1px;top:0;bottom:0}
+.mml-guide.h {height:1px;left:0;right:0}
+.mml-handle {display:flex;align-items:center;gap:8px;position:relative;z-index:60;
+  width:max-content;margin:-14px auto 0;background:#0d1526;border:1px solid #4da6ff;border-radius:8px;
+  padding:4px 10px;font-size:12px;color:#7cc4ff;white-space:nowrap;box-shadow:0 0 14px rgba(77,166,255,.35),0 4px 14px rgba(0,0,0,.5);
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.mml-resize {display:block;position:absolute;width:16px;height:16px;z-index:61;
+  cursor:nwse-resize;background:#e63946;border:2px solid #fff;border-radius:50%;box-shadow:0 0 10px rgba(230,57,70,.8)}
+.mml-resize.nw {top:-8px;left:-8px;cursor:nwse-resize}
+.mml-resize.se {bottom:-8px;right:-8px;cursor:nwse-resize}
+.mml-resize.ne {top:-8px;right:-8px;cursor:nesw-resize}
+.mml-resize.sw {bottom:-8px;left:-8px;cursor:nesw-resize}
+.mml-handle {display:flex;align-items:center;gap:8px;position:relative;z-index:60;
+  width:max-content;margin:-14px auto 0;background:#0d1526;border:1px solid #4da6ff;border-radius:8px;
+  padding:4px 10px;font-size:12px;color:#7cc4ff;white-space:nowrap;box-shadow:0 0 14px rgba(77,166,255,.35),0 4px 14px rgba(0,0,0,.5);
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.mml-grip {letter-spacing:2px;cursor:grab;color:#7cc4ff;font-weight:700;touch-action:none;
+  user-select:none;-webkit-user-select:none;padding:2px 4px}
+.mml-pin {background:none;border:none;font-size:14px;cursor:pointer;opacity:.4;padding:0 2px}
+.mml-pinned .mml-pin {opacity:1}
+.mml-rotate-btn {background:none;border:none;color:#7cc4ff;font-size:14px;cursor:grab;padding:2px 6px;border-radius:4px}
+.mml-rotate-btn:hover {background:rgba(77,166,255,.2)}
+.mml-del {background:none;border:none;cursor:pointer;padding:2px 6px;border-radius:4px;display:inline-flex;align-items:center}
+.mml-del:hover {background:rgba(255,80,80,.25);color:#ff8a8a}
+.mml-deg-label {position:fixed;z-index:10001;display:none;pointer-events:none;background:#0d1526;border:1px solid #4da6ff;color:#ff8a8a;font-size:13px;font-weight:700;padding:4px 10px;border-radius:6px;box-shadow:0 0 12px rgba(77,166,255,.4);font-family:monospace;white-space:nowrap}
+.mml-pinned .mml-grip {opacity:.3;cursor:not-allowed}
+.mml-placeholder {border:2px dashed #e63946;border-radius:12px;background:rgba(230,57,70,.08);
+  margin:8px 0;flex-shrink:0}
+.mml-dragging {z-index:9999 !important;pointer-events:none;opacity:.92;
+  box-shadow:0 18px 50px rgba(0,0,0,.6);will-change:transform}
+.mml-toolbar {position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:10000;display:flex;
+  gap:8px;align-items:center;background:#0d1526;border:2px solid #4da6ff;border-radius:14px;
+  padding:8px 12px;box-shadow:0 0 18px rgba(77,166,255,.8),0 0 42px rgba(77,166,255,.35),0 8px 30px rgba(0,0,0,.6);
+  font-size:13px;color:#fff;white-space:nowrap;transition:opacity .4s}
+.mml-toolbar.mml-idle {opacity:.22}
+.mml-toolbar button {background:#241318;border:1px solid #7a2a33;color:#ffd9dc;border-radius:8px;
+  padding:6px 12px;font-size:13px;cursor:pointer}
+.mml-toolbar button:hover {border-color:#e63946}
+.mml-toolbar button.primary {background:radial-gradient(circle at 35% 32%,#ff8a8a,#e63946 45%,#a4161a 100%);
+  border:none;color:#fff;box-shadow:0 0 12px rgba(230,57,70,.55)}
+.mml-toast {position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(8px);background:#160f14;
+  border:1px solid #e63946;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px;opacity:0;
+  transition:opacity .2s,transform .2s;z-index:10001;pointer-events:none;max-width:90vw;text-align:center}
+.mml-toast.show {opacity:1;transform:translateX(-50%) translateY(0)}
+.mml-custom {background:rgba(124,58,237,.06);border:1px dashed #7c3aed;border-radius:12px;
+  padding:20px;min-height:110px}
+.mml-custom [data-mml-edit] {outline:none;border-radius:6px;padding:2px 4px}
+.mml-custom [data-mml-edit]:focus {background:rgba(124,58,237,.14)}
+.mml-toolbar {flex-wrap:wrap;justify-content:center;max-width:94vw}
+.mml-ttitle {cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;font-weight:600;color:#ff8a8a}
+.mml-toolbar.mml-pinned .mml-ttitle {cursor:default;opacity:.55}
+.mml-toolbar .mml-pin {background:none;border:none;font-size:14px;cursor:pointer;opacity:.4;padding:0 2px}
+.mml-toolbar.mml-pinned .mml-pin {opacity:1}
+.mml-fab {position:fixed;bottom:16px;right:16px;z-index:9000;width:46px;height:46px;border-radius:50%;
+  border:2px solid #4da6ff;color:#fff;font-size:20px;cursor:grab;
+  background:radial-gradient(circle at 35% 32%,#ff8a8a,#e63946 45%,#a4161a 100%);
+  box-shadow:0 0 16px rgba(77,166,255,.7),0 0 20px rgba(230,57,70,.6),0 4px 14px rgba(0,0,0,.5);
+  display:flex;align-items:center;justify-content:center;opacity:.75;
+  touch-action:none;user-select:none;-webkit-user-select:none}
+.mml-fab:hover {opacity:1;box-shadow:0 0 24px rgba(77,166,255,.9),0 0 28px rgba(230,57,70,.8),0 4px 14px rgba(0,0,0,.5)}
+.mml-fab:active {cursor:grabbing}
+*/
+.mml-resize {display:none}
+.mml-resize {display:block;position:absolute;width:16px;height:16px;z-index:61;
+  background:#160f14;border:2px solid #e63946;border-radius:4px;touch-action:none;
+  box-shadow:0 0 10px rgba(230,57,70,.5)}
+.mml-resize.nw {top:-8px;left:-8px;cursor:nwse-resize}
+.mml-resize.se {bottom:-8px;right:-8px;cursor:nwse-resize}
+.mml-resize.ne {top:-8px;right:-8px;cursor:nesw-resize}
+.mml-resize.sw {bottom:-8px;left:-8px;cursor:nesw-resize}
+.mml-pinned .mml-resize {display:none}
+
+/* ===== iOS 26 frosted glass — DeepGearFLUSH recipe (2026-10-21) ===== */
+.topbar {
+  background: rgba(9,9,13,.38);
+  backdrop-filter: blur(20px) saturate(1.7);
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.dim-flip {
+  background: rgba(255,255,255,.055);
+  border: 1px solid rgba(255,255,255,.13);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.3), 0 12px 32px rgba(0,0,0,.38);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+}
+.m3-envpop, .mml-toolbar, .m3-dock, .m3-stats {
+  background: rgba(15,14,24,.55);
+  backdrop-filter: blur(18px) saturate(1.6);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  border-color: rgba(255,255,255,.1);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 18px 40px rgba(0,0,0,.5);
+}
+#m3BridgePop { width: 262px; }
+.panel, .gcard, .cat-card, .tool-card { background: rgba(21,18,35,.78); }
