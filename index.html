@@ -454,6 +454,13 @@
         </button>
       </div>
 
+      <div class="m3-chainbox">
+        <strong>Text to 3D</strong>
+        <p>Describe it — the hub draws it in 2D first, then builds the mesh itself.</p>
+        <div class="m3-chain-row"><input type="text" id="m3ChainInput" placeholder="e.g. a tiny robot knight" aria-label="Describe a 3D model"><button type="button" id="m3ChainBtn">Generate 3D model</button></div>
+        <p class="m3-chain-status" id="m3ChainStatus"></p>
+      </div>
+
       <div class="m3-seg" role="group" aria-label="Topology mode">
         <button type="button" class="m3-seg-btn active" id="m3TopoDetail">High Detail</button>
         <button type="button" class="m3-seg-btn" id="m3TopoSmart">Smart Topology</button>
@@ -474,8 +481,8 @@
 
       <div class="m3-tip">&#128204; For better results with 2D or hand-drawn art, use Image Generation to give it a 3D look first.</div>
 
-      <label class="m3-label">Image</label>
-      <div class="m3-drop" id="m3Drop" role="button" tabindex="0" aria-label="Choose an image to turn into a 3D mesh">
+      <label class="m3-label m3-imgonly">Image</label>
+      <div class="m3-drop m3-imgonly" id="m3Drop" role="button" tabindex="0" aria-label="Choose an image to turn into a 3D mesh">
         <input type="file" id="m3File" accept="image/*" hidden>
         <img id="m3Thumb" class="m3-thumb" alt="Selected image preview" hidden>
         <div class="m3-drop-text" id="m3DropText">
@@ -486,12 +493,12 @@
         <button type="button" class="m3-drop-genlink" id="m3DropGenLink">Generate Image for 3D &#8250;</button>
       </div>
 
-      <div class="m3-samples" id="m3Samples" hidden>
+      <div class="m3-samples m3-imgonly" id="m3Samples" hidden>
         <span class="m3-samples-label">From your 2D generations</span>
         <div class="m3-samples-row" id="m3SamplesRow"></div>
       </div>
 
-      <button id="m3UseChar" class="m3-bridge" type="button">Use my 2D character — turn your latest sprite into a mesh</button>
+      <button id="m3UseChar" class="m3-bridge m3-imgonly" type="button">Use my 2D character — turn your latest sprite into a mesh</button>
 
       <div class="m3-mvrow">
         <span>Multi-view <span class="m3-free-tag">FREE</span></span>
@@ -499,7 +506,7 @@
       </div>
       <p class="m3-mv-note">Multi-view routes AUTO through InstantMesh's multi-view pipeline first.</p>
 
-      <div class="m3-hintcard" id="m3HintCard">
+      <div class="m3-hintcard m3-imgonly" id="m3HintCard">
         <span>&#10067; No image yet? Generate one first.</span>
         <button type="button" id="m3HintGen" class="m3-hint-btn">&#10024; Generate Image</button>
       </div>
@@ -520,12 +527,6 @@
       <div class="m3-costline" id="m3CostLine">Free &middot; no signup &middot; no keys</div>
       <button id="m3Go" class="m3-generate" type="button" disabled>&#10024; Generate</button>
       <div id="m3Status" class="m3-status" role="status" aria-live="polite">Pick an image to start — it's free.</div>
-      <div class="m3-chainbox">
-        <strong>Text to 3D</strong>
-        <p>Describe it — the hub draws it in 2D first, then builds the mesh itself.</p>
-        <div class="m3-chain-row"><input type="text" id="m3ChainInput" placeholder="e.g. a tiny robot knight" aria-label="Describe a 3D model"><button type="button" id="m3ChainBtn">Generate 3D model</button></div>
-        <p class="m3-chain-status" id="m3ChainStatus"></p>
-      </div>
     </aside>
 
     <!-- ===== stage: Meshy viewer layout ===== -->

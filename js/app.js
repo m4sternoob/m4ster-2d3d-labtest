@@ -5894,19 +5894,20 @@ function wire3DLab() {
     if (btn) btn.click();
     if (message) say(message);
   }
-  /* mode tabs switch the rail's mode in place — they never teleport the
-   * user. Text mode points at the chain box at the rail's foot and the
-   * one-click chain does the 2D hop by itself when it runs. */
+  /* mode tabs switch the rail's mode in place — they never teleport or
+   * scroll the user. The chain panel sits directly under the tabs and
+   * only exists in Text mode; the image-only inputs hide while it's up.
+   * The one-click chain does the 2D hop by itself when it runs. */
   const tabImage = document.getElementById("m3TabImage");
   const tabText = document.getElementById("m3TabText");
   function m3SetMode(text) {
     if (tabImage) { tabImage.classList.toggle("active", !text); tabImage.setAttribute("aria-selected", String(!text)); }
     if (tabText) { tabText.classList.toggle("active", text); tabText.setAttribute("aria-selected", String(text)); }
+    const rail = document.querySelector(".m3-rail");
+    if (rail) rail.classList.toggle("text-mode", text);
     if (text) {
-      const box = document.querySelector(".m3-chainbox");
-      if (box) box.scrollIntoView({ behavior: "smooth", block: "nearest" });
       const inp = document.getElementById("m3ChainInput");
-      if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 250);
+      if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 60);
       const cs = document.getElementById("m3ChainStatus");
       if (cs && !cs.textContent) cs.textContent = "One click: the hub draws it, then builds the mesh itself.";
     }
