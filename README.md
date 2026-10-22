@@ -4,7 +4,7 @@
 
 Free, open-source, unlimited 2D game sprite studio that runs 100% in your
 browser. No API keys, no signup, no credit card, no payments — ever.
-(The repo and URL stay `m4ster-sprite-gen`; the product brand is FrameLab.)
+(Test build of m4ster FrameLab — hub experiments land here first. Production: https://m4ster-framelab.vercel.app)
 
 Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
@@ -265,7 +265,7 @@ animated preview, PNG + manifest JSON export.
 
 ## Live
 
-**https://m4ster-sprite-gen.vercel.app**
+**https://m4ster-framelab-test.vercel.app**
 
 ## What it generates
 
