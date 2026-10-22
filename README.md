@@ -1,10 +1,10 @@
-# m4ster FrameLab
+# m4ster FrameLab (Test)
 
 **For the gamers, by the gamers.**
 
 Free, open-source, unlimited 2D game sprite studio that runs 100% in your
 browser. No API keys, no signup, no credit card, no payments — ever.
-(Test build of m4ster FrameLab — hub experiments land here first. Production: https://m4ster-framelab.vercel.app)
+(TEST build — this repo is the experimental twin of [m4ster-framelab](https://github.com/m4sternoob/m4ster-framelab). New providers and features prove themselves here first, then graduate to production.)
 
 Type what you want in the big prompt box and hit **MAKE IT** — or pick a
 category card, a motion preset, or a gallery piece. You get a packed sprite
@@ -265,7 +265,8 @@ animated preview, PNG + manifest JSON export.
 
 ## Live
 
-**https://m4ster-framelab-test.vercel.app**
+**Test build:** https://m4ster-framelab-test.vercel.app (mirror: https://m4ster-framelab-test.pages.dev)
+**Production:** https://m4ster-framelab.vercel.app
 
 ## What it generates
 
