@@ -5574,6 +5574,36 @@ async function m3RunHunyuanMini(file, say) {
   return { glb: await m3FetchBlob(url, deadline), obj: null };
 }
 
+/* TRELLIS.2 Text-to-3D (community space prithivMLmods/TRELLIS.2-Text-to-3D):
+ * TRUE direct text -> mesh — the prompt is the only input, the studio
+ * never draws anything. fn 4 generate_txt2img happens INSIDE the
+ * provider (its own internal step), fn 5 preprocesses that image,
+ * fn 8 generate_3d returns the GLB in output[1]. Endpoint map and the
+ * 17 generate_3d inputs are the space's own defaults, verified live
+ * against its /config on 2026-10-22. Faces follow the studio topology
+ * toggle: Smart 50k, High Detail 150k. */
+async function m3RunTrellis2Text(prompt, say) {
+  const prov = { name: "TRELLIS.2 Text-to-3D", host: "https://prithivmlmods-trellis-2-text-to-3d.hf.space", base: "/gradio_api" };
+  const deadline = Date.now() + M3_TIMEOUT_MS;
+  const seed = Math.floor(Math.random() * 100000);
+  say("TRELLIS.2 Text-to-3D — your words go straight to the 3D model…");
+  const drawn = await m3Call(prov, m3Session(), 4, [prompt], deadline);
+  const img = drawn && drawn[0];
+  if (!img) throw new Error("TRELLIS.2 Text-to-3D returned no starting image");
+  say("TRELLIS.2 Text-to-3D — shaping the mesh…");
+  const pre = await m3Call(prov, m3Session(), 5, [img], deadline);
+  const processed = (pre && pre[0]) || img;
+  const faces = window.M3_SMART_TOPO ? 50000 : 150000;
+  say("TRELLIS.2 Text-to-3D — building your mesh (usually ~1–2 minutes)…");
+  const made = await m3Call(prov, m3Session(), 8, [processed, seed, "1024", faces, 1024, 7.5, 0.7, 12, 5.0, 7.5, 0.5, 12, 3.0, 1.0, 0.0, 12, 3.0], deadline);
+  const unwrap = (v) => v && typeof v === "object" && "value" in v ? v.value : v;
+  const glbFd = unwrap(made && made[1]) || unwrap(made && made[0]);
+  const url = m3FileUrl(prov, glbFd);
+  if (!url) throw new Error("TRELLIS.2 Text-to-3D finished but returned no mesh file");
+  say("TRELLIS.2 Text-to-3D — downloading your mesh…");
+  return { glb: await m3FetchBlob(url, deadline), obj: null };
+}
+
 function wire3DLab() {
   const fileInput = document.getElementById("m3File");
   wireModelPicker("m3ModelBtn", "m3Provider");
@@ -5982,7 +6012,7 @@ function wire3DLab() {
       const inp = document.getElementById("m3ChainInput");
       if (inp) setTimeout(() => inp.focus({ preventScroll: true }), 60);
       const cs = document.getElementById("m3ChainStatus");
-      if (cs && !cs.textContent) cs.textContent = "One click: the hub draws it, then builds the mesh itself.";
+      if (cs && !cs.textContent) cs.textContent = "One click: your words go straight to the 3D model — no drawing step.";
     }
   }
   if (tabText) tabText.addEventListener("click", () => m3SetMode(true));
@@ -7055,11 +7085,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function flip3() { const f = $("flip3d"); if (f) f.click(); }
   function scrollTo(id) { const el = $(id); if (el) el.scrollIntoView({ behavior: "smooth", block: "center" }); }
 
-  /* --- Text to 3D: fully independent, inside the studio ---
-   * The studio draws the image itself through the same free AI API the
-   * 2D side uses — the 2D wizard is never opened, flipped to, or
-   * borrowed, and its rows are never touched. Steps live in the panel:
-   * 1 Describe, 2 Draw, 3 Build mesh. */
+  /* --- Text to 3D: DIRECT — words go straight to a text-to-3D model.
+   * There is no drawing step anywhere: the prompt never touches the
+   * 2D side and the studio generates no image at all. TRELLIS.2
+   * Text-to-3D (free) turns the words into a mesh; the result loads
+   * into the stage through M3_LOAD_GLB, the same door uploaded
+   * models use. Steps in the panel: 1 Describe, 2 Build mesh. */
   function t3dStep(n) {
     const box = $("m3TSteps");
     if (!box) return;
@@ -7071,40 +7102,33 @@ document.addEventListener("DOMContentLoaded", function () {
   }
   function t3dStatus(t) { const cs = $("m3ChainStatus"); if (cs) cs.textContent = t; }
   window.M3_TEXT_TO_3D = async function (promptText) {
-    if (window.M3_T3D_RUNNING) { t3dStatus("Already drawing one — give it a moment."); return; }
+    if (window.M3_T3D_RUNNING) { t3dStatus("Already building one — give it a moment."); return; }
     const text = (promptText || "").trim();
     if (!text) { t3dStatus("Describe the model first."); return; }
     window.M3_T3D_RUNNING = true;
     const btn = $("m3ChainBtn");
     if (btn) btn.disabled = true;
     try {
-      /* faces die on Smart: it routes AUTO to InstantMesh first. Text
-       * prompts are characters and detailed objects — build them on
-       * High Detail. The toggle is right there if he wants Smart. */
-      if (window.M3_SMART_TOPO) { const hd = $("m3TopoDetail"); if (hd) hd.click(); }
-      t3dStep(2);
-      const shaped = text + ", full body, entire figure visible with empty margin around it, head large and clearly detailed, standing straight facing the camera, plain solid white background, studio product photography, sharp focus, no text";
-      let bmp = null;
-      try {
-        bmp = await aiGenerateWith("space-flux", shaped, 1024, 1024, (st) => t3dStatus("Step 2 of 3 — drawing… " + st));
-      } catch (fluxErr) {
-        bmp = await aiGenerateImage(shaped, 512, 512, (st) => t3dStatus("Step 2 of 3 — drawing… " + st));
-      }
-      if (!bmp) throw new Error("the image step came back empty — the free queue may have eaten it, try once more.");
-      const cv = document.createElement("canvas");
-      cv.width = bmp.width || 512; cv.height = bmp.height || 512;
-      cv.getContext("2d").drawImage(bmp, 0, 0);
-      const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
-      if (!blob) throw new Error("could not package the drawn image.");
+      /* the studio's optional HF token lifts the free GPU quota —
+       * read it once at run start, like an image run does */
+      try { M3_TOKEN = aiKeyFor("hf-flux"); } catch (e) { /* no token saved */ }
       const thumb = $("m3ChainThumb");
-      if (thumb) { thumb.src = cv.toDataURL("image/png"); thumb.hidden = false; }
-      t3dStep(3);
-      t3dStatus("Step 3 of 3 — drawn right here in the studio. Building your mesh…");
-      if (window.M3_SET_SOURCE) window.M3_SET_SOURCE(new File([blob], "text-to-3d.png", { type: "image/png" }));
-      setTimeout(() => { const go = $("m3Go"); if (go && !go.disabled) go.click(); }, 600);
+      if (thumb) thumb.hidden = true;
+      t3dStep(2);
+      const t0 = Date.now();
+      const made = await m3RunTrellis2Text(text, (s) => t3dStatus(s));
+      const secs = Math.max(1, Math.round((Date.now() - t0) / 1000));
+      const url = URL.createObjectURL(made.glb);
+      window.M3_LOAD_GLB(url, "text-to-3d.glb");
+      const note = document.getElementById("m3ResultNote");
+      if (note) note.textContent = "Made by TRELLIS.2 Text-to-3D straight from your words in ~" + secs + "s, free — no image step. GLB drops straight into Unity / Unreal / Godot.";
+      t3dStatus("Done — your mesh is in the stage below. ⬇");
     } catch (e) {
       t3dStep(1);
-      t3dStatus("Text to 3D stopped: " + String((e && e.message) || e).slice(0, 220));
+      const em = String((e && e.message) || e);
+      t3dStatus(/quota|ZeroGPU/i.test(em)
+        ? "The free GPU budget is busy right now — that's the shared community pool, not your prompt. Give it a minute and hit Generate again. Tip: a free Hugging Face token saved in the studio skips the line."
+        : "Text to 3D stopped: " + em.slice(0, 220));
     } finally {
       window.M3_T3D_RUNNING = false;
       if (btn) btn.disabled = false;
@@ -7119,7 +7143,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const inp = $("m3ChainInput");
     if (inp) inp.value = promptText;
     const sk = $("skStatus");
-    if (sk) sk.textContent = "Skill running in the 3D studio — image first, mesh right after, all automatic.";
+    if (sk) sk.textContent = "Skill running in the 3D studio — words straight to mesh, all automatic.";
     scrollTo("lab3d");
     window.M3_TEXT_TO_3D(promptText);
   };
