@@ -1008,7 +1008,7 @@ textarea:focus:not(:focus-visible) { outline: none; }
   html.has-orb, html.has-orb * { cursor: none !important; }
 }
 .cursor-orb {
-  position: fixed; left: 0; top: 0; z-index: 9999; pointer-events: none;
+  position: fixed; left: 0; top: 0; z-index: 100000; pointer-events: none;
   width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%;
   background: radial-gradient(circle, var(--violet-soft) 0%, var(--violet) 38%, transparent 72%);
   opacity: .85; will-change: transform;
